@@ -75,10 +75,18 @@ WSGI_APPLICATION = 'middleware.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',  # Use MySQL database backend
+        'NAME': 'Customers',         # Change this to your MySQL database name
+        'USER': 'root',            # Change this to your MySQL username
+        'PASSWORD': '1nn0c3nt',    # Change this to your MySQL password
+        'HOST': 'localhost',                  # Use 'localhost' if MySQL is on the same machine
+        'PORT': '3306',                        # Default MySQL port
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"  # Helps prevent data issues
+        }
     }
 }
+
 
 
 # Password validation
