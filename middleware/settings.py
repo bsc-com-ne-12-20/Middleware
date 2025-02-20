@@ -74,17 +74,24 @@ WSGI_APPLICATION = 'middleware.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-DATABASES = {
+"""DATABASES = {    #just incase we'll have to use MySql at some time 
     'default': {
         'ENGINE': 'django.db.backends.mysql',  # Use MySQL database backend
         'NAME': 'Customers',         # Change this to your MySQL database name
         'USER': 'root',            # Change this to your MySQL username
-        'PASSWORD': '1nn0c3nt',    # Change this to your MySQL password
+        'PASSWORD': ,    # Change this to your MySQL password
         'HOST': 'localhost',                  # Use 'localhost' if MySQL is on the same machine
         'PORT': '3306',                        # Default MySQL port
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"  # Helps prevent data issues
         }
+    }
+}
+"""
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
@@ -130,3 +137,10 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.BasicAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ]
+}
