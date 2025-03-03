@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-s8r#l8lfra=k!9e=++p5hhn5rblilcuc%fs*#k#=168tp9-m%$
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [*]
 
 
 # Application definition
@@ -155,7 +155,7 @@ REST_FRAMEWORK = {
 
 #corseheaders 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Allow requests from your Preact frontend
+    "https://securemomo.netlify.app/",  # Allow requests from your Preact frontend
 ]
 
 # Email Backend Configuration
