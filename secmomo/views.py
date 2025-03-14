@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from decimal import Decimal
 from rest_framework import status # type: ignore
 from rest_framework.response import Response # type: ignore
 from rest_framework.decorators import api_view # type: ignore
@@ -11,9 +12,13 @@ from rest_framework.authtoken.models import Token # type: ignore
 from rest_framework.decorators import api_view, permission_classes # type: ignore
 from rest_framework.permissions import IsAuthenticated # type: ignore
 from django.contrib.auth import update_session_auth_hash
-
-
+from django.shortcuts import get_object_or_404
 from .models import Agents
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .models import Transaction  # Import the Transaction model
+from django.shortcuts import get_object_or_404
 
 # Create your views here.
 #for registering agents
@@ -76,3 +81,64 @@ def change_password(request):
                 return Response({'message': 'Password changed successfully.'}, status=status.HTTP_200_OK)
             return Response({'error': 'Incorrect old password.'}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+@permission_classes([IsAuthenticated])
+@api_view(['POST'])
+def agent_withdraw(request):
+    """
+    API endpoint for agents to withdraw money.
+    """
+    try:
+        data = request.data  # DRF handles JSON parsing automatically
+        agent_code = data.get("agent_code")
+        amount = data.get("amount")
+
+        # Validate data
+        if not agent_code or amount is None:
+            return Response({"error": "Agent code and amount are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Get the authenticated user (agent)
+        agent = request.user  # This will be an instance of Agents
+
+        # Ensure amount is a valid decimal
+        try:
+            amount = Decimal(amount)
+        except (ValueError, InvalidOperation):
+            return Response({"error": "Invalid amount value"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if the agent has enough balance
+        if agent.balance < amount:
+            return Response({"error": "Insufficient balance"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Deduct amount from balance
+        agent.balance -= amount
+        agent.save()
+
+        # Record the transaction in the Transaction model
+        Transaction.objects.create(agent=agent, amount=amount, transaction_type='withdrawal')
+
+        return Response({"message": "Withdrawal successful", "new_balance": str(agent.balance)}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+@permission_classes([IsAuthenticated])
+@api_view(['GET'])
+def agent_transaction_history(request):
+    agent = request.user
+    transactions = Transaction.objects.filter(agent=agent)
+
+    if not transactions:
+        return Response({"message": "No transactions found for this agent."}, status=status.HTTP_404_NOT_FOUND)
+
+    transaction_data = [
+        {
+            "date": transaction.date,
+            "amount": str(transaction.amount),
+            "transaction_type": transaction.transaction_type,
+        }
+        for transaction in transactions
+    ]
+
+    return Response(transaction_data, status=status.HTTP_200_OK)
