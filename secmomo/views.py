@@ -172,31 +172,42 @@ def agent_deposit(request):
 @permission_classes([IsAuthenticated])
 @api_view(['POST'])
 def verify_identity(request):
-    """
-    Redirects the user to the e-Signet verification page.
-    """
     user = request.user
     verification, created = IdentityVerification.objects.get_or_create(user=user)
 
     if verification.is_verified:
         return Response({"message": "Identity already verified."}, status=status.HTTP_200_OK)
 
-    # Redirect to e-Signet for verification
-    return redirect(f"https://esignet.example.com/verify?user_id={user.id}")  # Replace with actual e-Signet URL
+    # Get the intended action from the request data
+    action = request.data.get('action')  # e.g., 'withdraw' or 'deposit'
+
+    # Redirect to e-Signet for verification, including the intended action
+    return redirect(f"https://esignet.example.com/verify?user_id={user.id}&action={action}")  # Replace with actual e-Signet URL
+
 
 @api_view(['GET'])
 def e_signet_callback(request):
     user_id = request.GET.get('user_id')
     verification_result = request.GET.get('verification_result')  # This should be set by e-Signet
+    action = request.GET.get('action')  # Get the action from the query parameters
 
     try:
         user = Agents.objects.get(id=user_id)
-        verification, created = IdentityVerification.objects.get_or_create(user=user)
+        verification, _ = IdentityVerification.objects.get_or_create(user=user)
 
         if verification_result == 'success':
             verification.is_verified = True
             verification.save()
-            return redirect(reverse('agent_withdraw'))  # Redirect to withdrawal form
+
+            # Redirect based on the intended action
+            if action == 'withdraw':
+                return redirect(reverse('agent_withdraw'))  # Redirect to withdrawal form
+            elif action == 'deposit':
+                return redirect(reverse('agent_deposit'))  # Redirect to deposit form
+            elif action == 'transaction':
+                return redirect(reverse('agent_transaction_history'))  # Redirect to transaction history
+            else:
+                return Response({"message": "Verification successful, but no valid action specified."}, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response({"error": "Verification failed."}, status=status.HTTP_403_FORBIDDEN)
     except Agents.DoesNotExist:
