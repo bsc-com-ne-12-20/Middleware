@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import User
+from django.conf import settings  # Ensure this import is at the top
 
 class Agents(AbstractUser):
     email = models.EmailField(unique=True)
@@ -22,3 +24,12 @@ class Transaction(models.Model):
 
     def __str__(self):
         return f"{self.transaction_type.capitalize()} of {self.amount} by {self.agent.username} on {self.date}"
+    
+#Handle verification identity from esignet
+class IdentityVerification(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    is_verified = models.BooleanField(default=False)
+    verification_date = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.user.username} - Verified: {self.is_verified}"
