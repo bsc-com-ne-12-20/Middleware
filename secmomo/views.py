@@ -85,55 +85,7 @@ def change_password(request):
             return Response({'error': 'Incorrect old password.'}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-@permission_classes([IsAuthenticated])
-@api_view(['POST'])
-def agent_withdraw(request):
-    """
-    API endpoint for agents to withdraw money.
-    """
-    #This is for handling th esginet verification///////////////////////////////////////////////////////
-    user = request.user
-    verification = IdentityVerification.objects.get(user=user)
-
-    if not verification.is_verified:
-        return Response({"error": "Please verify your identity before making a deposit."}, status=status.HTTP_403_FORBIDDEN)
-    #/////////////////////////////////////////////////////////////////////////////////////////////////
-    
-    try:
-        data = request.data  # DRF handles JSON parsing automatically
-        agent_code = data.get("agent_code")
-        amount = data.get("amount")
-
-        # Validate data
-        if not agent_code or amount is None:
-            return Response({"error": "Agent code and amount are required"}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Get the authenticated user (agent)
-        agent = request.user  # This will be an instance of Agents
-
-        # Ensure amount is a valid decimal
-        try:
-            amount = Decimal(amount)
-        except (ValueError, InvalidOperation):
-            return Response({"error": "Invalid amount value"}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Check if the agent has enough balance
-        if agent.balance < amount:
-            return Response({"error": "Insufficient balance"}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Deduct amount from balance
-        agent.balance -= amount
-        agent.save()
-
-        # Record the transaction in the Transaction model
-        Transaction.objects.create(agent=agent, amount=amount, transaction_type='withdrawal')
-
-        return Response({"message": "Withdrawal successful", "new_balance": str(agent.balance)}, status=status.HTTP_200_OK)
-
-    except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-    
-    
+ #Trasactions views   
 @permission_classes([IsAuthenticated])
 @api_view(['GET'])
 def agent_transaction_history(request):
@@ -163,6 +115,7 @@ def agent_transaction_history(request):
 
     return Response(transaction_data, status=status.HTTP_200_OK)
 
+#handle diposit
 @permission_classes([IsAuthenticated])
 @api_view(['POST'])
 def agent_deposit(request):
@@ -214,8 +167,8 @@ def agent_deposit(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-    
-#esignet handling model
+ 
+ #handle verification identity   
 @permission_classes([IsAuthenticated])
 @api_view(['POST'])
 def verify_identity(request):
@@ -223,12 +176,64 @@ def verify_identity(request):
     Redirects the user to the e-Signet verification page.
     """
     user = request.user
-
-    # Check if user is already verified
     verification, created = IdentityVerification.objects.get_or_create(user=user)
 
     if verification.is_verified:
         return Response({"message": "Identity already verified."}, status=status.HTTP_200_OK)
 
     # Redirect to e-Signet for verification
-    return redirect("https://esignet.example.com/verify?user_id={}".format(user.id))  # Replace with actual e-Signet URL
+    return redirect(f"https://esignet.example.com/verify?user_id={user.id}")  # Replace with actual e-Signet URL
+
+@api_view(['GET'])
+def e_signet_callback(request):
+    user_id = request.GET.get('user_id')
+    verification_result = request.GET.get('verification_result')  # This should be set by e-Signet
+
+    try:
+        user = Agents.objects.get(id=user_id)
+        verification, created = IdentityVerification.objects.get_or_create(user=user)
+
+        if verification_result == 'success':
+            verification.is_verified = True
+            verification.save()
+            return redirect(reverse('agent_withdraw'))  # Redirect to withdrawal form
+        else:
+            return Response({"error": "Verification failed."}, status=status.HTTP_403_FORBIDDEN)
+    except Agents.DoesNotExist:
+        return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+    
+#Handle withdraw
+@permission_classes([IsAuthenticated])
+@api_view(['POST'])
+def agent_withdraw(request):
+    
+    #This is for handling th esginet verification/////////////////////////////
+    user = request.user
+    verification = IdentityVerification.objects.get(user=user)
+
+    if not verification.is_verified:
+        return Response({"error": "Please verify your identity before making a withdrawal."}, status=status.HTTP_403_FORBIDDEN)
+    #////////////////////////////////////////////////////////////////////////////
+    
+    # Proceed with withdrawal logic...
+    try:
+        data = request.data
+        amount = Decimal(data.get("amount"))
+        if amount <= 0:
+            return Response({"error": "Amount must be greater than zero."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check agent balance and deduct
+        agent = request.user
+        if agent.balance < amount:
+            return Response({"error": "Insufficient balance."}, status=status.HTTP_400_BAD_REQUEST)
+
+        agent.balance -= amount
+        agent.save()
+        Transaction.objects.create(agent=agent, amount=amount, transaction_type='withdrawal')
+
+        return Response({"message": "Withdrawal successful", "new_balance": str(agent.balance)}, status=status.HTTP_200_OK)
+
+    except (ValueError, InvalidOperation):
+        return Response({"error": "Invalid amount value."}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
