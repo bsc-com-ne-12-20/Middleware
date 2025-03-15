@@ -155,7 +155,7 @@ REST_FRAMEWORK = {
 
 #corseheaders 
 CORS_ALLOWED_ORIGINS = [
-    "https://securemomo.netlify.app",  # Allow requests from your Preact frontend
+    "https://securemomo.netlify.app/",  # Allow requests from your Preact frontend
 ]
 
 # Email Backend Configuration
