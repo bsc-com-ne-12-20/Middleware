@@ -155,7 +155,6 @@ Your agent details:
 - Username: {username}
 - Agent Code: {agent_code}
 - Password: {temp_password}
-- Balance: {balance:,} MWK
 
 Please login to the agent portal using the following link:
 { login_url }
