@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Application Review</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .status-pending { color: orange; font-weight: bold; }
+        .status-approved { color: green; font-weight: bold; }
+        .status-rejected { color: red; font-weight: bold; }
+        .application-details { background: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
+        .action-buttons { margin-top: 30px; }
+        .processed-info { background: #e9ecef; padding: 15px; border-radius: 5px; }
+        body { padding: 20px; background-color: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="application-approval">
+            <h1>Agent Application Review</h1>
+            
+            <div class="application-details">
+                <h2>Application #{{ application.id }}</h2>
+                <p><strong>Applicant:</strong> {{ application.email }}</p>
+                <p><strong>Phone:</strong> {{ application.phone_number }}</p>
+                <p><strong>Type:</strong> {{ application.get_applicant_type_display }}</p>
+                {% if application.business_name %}
+                    <p><strong>Business:</strong> {{ application.business_name }}</p>
+                {% endif %}
+                <p><strong>Status:</strong> <span class="status-{{ application.status }}">{{ application.get_status_display }}</span></p>
+                <p><strong>Applied:</strong> {{ application.application_date }}</p>
+                
+                {% if application.id_document %}
+                    <p><strong>ID Document:</strong> <a href="{{ application.id_document.url }}" target="_blank">View</a></p>
+                {% endif %}
+                
+                {% if application.proof_of_address %}
+                    <p><strong>Address Proof:</strong> <a href="{{ application.proof_of_address.url }}" target="_blank">View</a></p>
+                {% endif %}
+            </div>
+
+            {% if application.status == 'pending' %}
+            <div class="action-buttons">
+                <form method="post" action="{% url 'approve-agent-application' application.id %}">
+                    {% csrf_token %}
+                    <div class="form-group mb-3">
+                        <label for="verification_notes" class="form-label">Verification Notes:</label>
+                        <textarea name="verification_notes" class="form-control" rows="3"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-success">Approve</button>
+                </form>
+                
+                <form method="post" action="{% url 'reject-agent-application' application.id %}" style="margin-top: 20px;">
+                    {% csrf_token %}
+                    <div class="form-group mb-3">
+                        <label for="rejection_reason" class="form-label">Rejection Reason:</label>
+                        <textarea name="rejection_reason" class="form-control" rows="3" required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-danger">Reject</button>
+                </form>
+            </div>
+            {% else %}
+            <div class="processed-info">
+                <p>This application was {{ application.status }} on {{ application.reviewed_at }}</p>
+                {% if application.verification_notes %}
+                    <p><strong>Notes:</strong> {{ application.verification_notes }}</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

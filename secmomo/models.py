@@ -1,16 +1,67 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
-from django.db import models
-
-# Create your models here.
+from django.core.mail import send_mail
+from django.conf import settings
+import random
+import string
 
 class Agents(AbstractUser):
-    email = models.EmailField(unique=True)
-    first_name = models.CharField(max_length=50)
-    last_name = models.CharField(max_length=50)
-
-    # Add custom fields here, if needed
+    AGENT_STATUS = (
+        ('pending', 'Pending Approval'),
+        ('active', 'Active'),
+        ('suspended', 'Suspended'),
+    )
+      
+    agent_code = models.CharField(max_length=10, unique=True, null=True, blank=True)
+    status = models.CharField(max_length=10, choices=AGENT_STATUS, default='pending')
+    mobile_money_user_id = models.PositiveIntegerField(null=True, blank=True)
+    current_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    phone_number = models.CharField(max_length=15, blank=True, null=True)
     
-
+    def save(self, *args, **kwargs):
+        if not self.agent_code:
+            self.agent_code = self._generate_agent_code()
+        super().save(*args, **kwargs)
+    
+    def _generate_agent_code(self):
+        """Generate unique 5-digit numerical code"""
+        while True:
+            code = str(random.randint(10000, 99999))  # 5-digit number
+            if not Agents.objects.filter(agent_code=code).exists():
+                return code
+class AgentApplication(models.Model):
+    APPLICANT_TYPES = (
+        ('individual', 'Individual'),
+        ('business', 'Business'),
+    )
+    
+    STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    )
+    
+    user = models.ForeignKey(Agents, on_delete=models.CASCADE, null=True, blank=True)
+    username = models.CharField(max_length=50, null=True, blank=True)
+    applicant_type = models.CharField(max_length=10, choices=APPLICANT_TYPES)
+    email = models.EmailField()
+    phone_number = models.CharField(max_length=15)
+    current_balance = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    business_name = models.CharField(max_length=100, blank=True, null=True)
+    tax_id = models.CharField(max_length=50, blank=True, null=True)
+    application_date = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    verification_notes = models.TextField(blank=True, null=True)
+    reviewed_by = models.ForeignKey(Agents, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviewed_applications')
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    
     def __str__(self):
-        return self.username
+        return f"Application from {self.email}"
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['username'], name='unique_application_username')
+        ]
+        ordering = ['-application_date']
+        verbose_name = "Agent Application"
+        verbose_name_plural = "Agent Applications"
