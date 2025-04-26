@@ -156,7 +156,6 @@ Your agent details:
 - Agent Code: {agent_code}
 - Password: {temp_password}
 
-
 Please login to the agent portal using the following link:
 { login_url }
 
