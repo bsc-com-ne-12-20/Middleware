@@ -1,0 +1,25 @@
+Dear Agent,
+
+We are pleased to inform you that your agent application has been approved!
+
+Your agent details:
+- Agent Code: {{ agent.agent_code }}
+- Username: {{ agent.email }}
+- Temporary Password: {{ temp_password }}
+
+Please login to the agent portal using the following link:
+{{ login_url }}
+
+For security reasons, you MUST change your temporary password immediately after logging in.
+
+To change your password:
+1. Log in with the temporary credentials above
+2. Go to your profile settings
+3. Select "Change Password"
+4. Enter your temporary password as the "Current Password"
+5. Enter and confirm your new secure password
+
+Welcome to our agent network!
+
+Best regards,
+The Agent Team
