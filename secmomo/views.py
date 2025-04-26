@@ -146,7 +146,7 @@ def auto_approve_agent(request):
             )
 
         # Send credentials
-        login_url = 'http://localhost:5173/login'  # Update with your frontend URL
+        login_url = 'https://pamomo-agent.netlify.app'  # Update with your frontend URL
         email_body = f"""Dear {username},
 
 We are pleased to inform you that your agent application has been approved!
