@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "config",
     "agentTransfers",
     "agents",
+    "UserWithdrawsUsingAgent",
 ]
 
 MIDDLEWARE = [
@@ -187,6 +188,9 @@ MOBILE_MONEY_API_KEY = (
 API_REQUEST_TIMEOUT = 30  # seconds
 ADMIN_EMAIL = "secmomo.africa@gmail.com"
 AGENT_PORTAL_URL = "https://pamomo-agent.netlify.app/login"
+# settings.py (Agent API)
+USER_WALLET_WITHDRAW_URL = "https://mtima.onrender.com/api/v1/wtdr/"  # Change to your actual user API withdraw endpoint
+
 
 # Logging Configuration
 LOGGING = {
