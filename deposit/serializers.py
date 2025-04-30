@@ -16,12 +16,14 @@ class AgentDepositSerializer(serializers.ModelSerializer):
         fields = ['agent_code', 'email', 'amount', 'transaction_id', 'timestamp']
 
     def validate(self, data):
+        #for authorized use only use 
+        #agent = self.context['request'].user(remove agent code)
         agent_code = data.get("agent_code")
         amount = data.get("amount")
 
         # Fetch agent using the provided agent code
         try:
-            agent = Agents.objects.get(agent_code=agent_code)
+            agent = Agents.objects.get(agent_code=agent_code)#this line will be removed for authenticated user
         except Agents.DoesNotExist:
             raise serializers.ValidationError("Agent with this code does not exist.")
 

@@ -9,6 +9,8 @@ from .serializers import AgentDepositHistorySerializer, AgentDepositSerializer
 
 class AgentDepositAPIView(generics.CreateAPIView):
     serializer_class = AgentDepositSerializer
+    #permission_classes = [IsAuthenticated]
+
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -18,7 +20,7 @@ class AgentDepositAPIView(generics.CreateAPIView):
 
 class AgentDepositHistoryAPIView(generics.ListAPIView):
     serializer_class = AgentDepositHistorySerializer
-    permission_classes = []  # Allow anonymous access (can be restricted to authenticated users)
+    #permission_classes = [IsAuthenticated]  # Allow anonymous access (can be restricted to authenticated users)
 
     def get_queryset(self):
         agent_code = self.request.query_params.get("agent_code")  # Get agent code from the URL query parameter
