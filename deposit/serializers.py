@@ -16,7 +16,7 @@ class AgentDepositSerializer(serializers.ModelSerializer):
         fields = ['agent_code', 'email', 'amount', 'transaction_id', 'timestamp']
 
     def validate(self, data):
-        #for authorized use only use 
+        #for authorized
         #agent = self.context['request'].user(remove agent code)
         agent_code = data.get("agent_code")
         amount = data.get("amount")
