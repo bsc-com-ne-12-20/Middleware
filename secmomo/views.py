@@ -267,6 +267,10 @@ def agent_logout(request):
     return Response({'message': 'Logged out successfully'})
 
 @api_view(['GET'])
+<<<<<<< HEAD
+@permission_classes([IsAuthenticated])
+=======
+>>>>>>> upstream/main
 def get_agent_username(request):
     """Get agent username by agent code"""
     agent_code = request.query_params.get('agent_code')
@@ -277,3 +281,39 @@ def get_agent_username(request):
     agent = get_object_or_404(Agents, agent_code=agent_code)
     return Response({'username': agent.username}, status=status.HTTP_200_OK)
 
+<<<<<<< HEAD
+
+#handling get balance on frontend of an logged in agent
+#@api_view(['POST'])
+#@permission_classes([IsAuthenticated])
+#def get_balance(request):
+  #  """
+  #  Return the current balance of the authenticated agent.
+  #  """
+  #  agent = request.user
+   # return Response({
+  #      'agent_code': agent.agent_code,
+  #      'balance': agent.current_balance
+ #   })
+
+#handle get balance
+@api_view(['POST'])
+#@permission_classes([IsAuthenticated])
+def get_balance(request):
+    """
+    Return the current balance for the given agent code.
+    """
+    agent_code = request.data.get('agent_code')
+
+    if not agent_code:
+        return Response({'error': 'Agent code is required'}, status=400)
+
+    try:
+        agent = Agents.objects.get(agent_code=agent_code)
+        return Response({
+            'balance': agent.current_balance
+        }, status=200)
+    except Agents.DoesNotExist:
+        return Response({'error': 'Agent not found'}, status=404)
+=======
+>>>>>>> upstream/main
