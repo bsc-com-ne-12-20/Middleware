@@ -265,3 +265,15 @@ def agent_logout(request):
     """Invalidate auth token"""
     request.user.auth_token.delete()
     return Response({'message': 'Logged out successfully'})
+
+@api_view(['GET'])
+def get_agent_username(request):
+    """Get agent username by agent code"""
+    agent_code = request.query_params.get('agent_code')
+
+    if not agent_code:
+        return Response({'error': 'Agent code is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    agent = get_object_or_404(Agents, agent_code=agent_code)
+    return Response({'username': agent.username}, status=status.HTTP_200_OK)
+
