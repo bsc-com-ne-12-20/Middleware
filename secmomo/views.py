@@ -278,8 +278,6 @@ def get_agent_username(request):
     agent = get_object_or_404(Agents, agent_code=agent_code)
     return Response({'username': agent.username}, status=status.HTTP_200_OK)
 
-
-
 #handling get balance on frontend of an logged in agent
 #@api_view(['POST'])
 #@permission_classes([IsAuthenticated])
@@ -312,3 +310,4 @@ def get_balance(request):
         }, status=200)
     except Agents.DoesNotExist:
         return Response({'error': 'Agent not found'}, status=404)
+
