@@ -27,14 +27,14 @@ class UserWithdrawToAgentAPIView(APIView):
         data = serializer.validated_data
         user_email = data["user_email"]
         amount = data["amount"]
-        agent_code = data["agent_code"]
+        agentCode = data["agentCode"]
 
         # Calculate fees (2% example)
         fee = amount * Decimal("0.02")
         net_amount = amount - fee
 
         try:
-            agent = Agents.objects.select_for_update().get(agent_code=agent_code)
+            agent = Agents.objects.select_for_update().get(agentCode=agentCode)
         except Agents.DoesNotExist:
             return Response(
                 {"detail": "Agent not found"}, status=status.HTTP_404_NOT_FOUND
@@ -90,15 +90,15 @@ class UserWithdrawToAgentAPIView(APIView):
 
 class AgentTransactionHistoryAPIView(APIView):
     def get(self, request):
-        agent_code = request.query_params.get("agent_code")
-        if not agent_code:
+        agentCode = request.query_params.get("agentCode")
+        if not agentCode:
             return Response(
-                {"detail": "agent_code parameter required"},
+                {"detail": "agentCode parameter required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         try:
-            agent = Agents.objects.get(agent_code=agent_code)
+            agent = Agents.objects.get(agentCode=agentCode)
             transactions = AgentBalanceUpdate.objects.filter(agent=agent).order_by(
                 "-timestamp"
             )

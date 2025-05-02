@@ -9,14 +9,14 @@ class RevenueSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 class AgentBalanceUpdateSerializer(serializers.ModelSerializer):
-    agent_code = serializers.CharField(source='agent.agent_code', read_only=True)
+    agentCode = serializers.CharField(source='agent.agentCode', read_only=True)
     agent_name = serializers.CharField(source='agent.username', read_only=True)
     
     class Meta:
         model = AgentBalanceUpdate
         fields = [
             'transaction_id',
-            'agent_code',
+            'agentCode',
             'agent_name',
             'user_email',
             'gross_amount',
@@ -28,7 +28,7 @@ class AgentBalanceUpdateSerializer(serializers.ModelSerializer):
             'transaction_id',
             'net_amount',
             'timestamp',
-            'agent_code',
+            'agentCode',
             'agent_name'
         ]
     
@@ -48,7 +48,7 @@ class UserWithdrawalToAgentSerializer(serializers.Serializer):
         decimal_places=2,
         min_value=Decimal('0.01')
     )
-    agent_code = serializers.CharField(max_length=10)
+    agentCode = serializers.CharField(max_length=10)
 
 class TransactionResponseSerializer(serializers.Serializer):
     success = serializers.BooleanField()

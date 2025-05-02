@@ -19,13 +19,13 @@ class TransferHistoryAPIView(generics.ListAPIView):
     serializer_class = TransferHistorySerializer
 
     def get_queryset(self):
-        agent_code = self.request.query_params.get("agent_code")
-        if not agent_code:
+        agentCode = self.request.query_params.get("agentCode")
+        if not agentCode:
             return Transfer.objects.none()  # Return empty queryset if no code provided
 
         user = get_object_or_404(
-            Agents, agent_code=agent_code
-        )  # 👈 Get agent by agent_code
+            Agents, agentCode=agentCode
+        )  # 👈 Get agent by agentCode
         return Transfer.objects.filter(sender=user) | Transfer.objects.filter(
             receiver=user
         )

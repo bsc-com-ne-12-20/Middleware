@@ -5,6 +5,7 @@ from django.conf import settings
 import random
 import string
 
+"""
 class Agents(AbstractUser):
     AGENT_STATUS = (
         ('pending', 'Pending Approval'),
@@ -12,22 +13,40 @@ class Agents(AbstractUser):
         ('suspended', 'Suspended'),
     )
       
-    agent_code = models.CharField(max_length=10, unique=True, null=True, blank=True)
+    agentCode = models.CharField(max_length=10, unique=True, null=True, blank=True)
     status = models.CharField(max_length=10, choices=AGENT_STATUS, default='pending')
     mobile_money_user_id = models.PositiveIntegerField(null=True, blank=True)
     current_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     phone_number = models.CharField(max_length=15, blank=True, null=True)
     
+"""
+
+
+class Agents(AbstractUser):
+    AGENT_STATUS = (
+        ('pending', 'Pending Approval'),
+        ('active', 'Active'),
+        ('suspended', 'Suspended'),
+    )
+      
+    agentCode = models.CharField(max_length=10, unique=True, null=True, blank=True)
+    status = models.CharField(max_length=10, choices=AGENT_STATUS, default='active')  # Changed from 'pending' to 'active'
+    mobile_money_user_id = models.PositiveIntegerField(null=True, blank=True)
+    current_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    phone_number = models.CharField(max_length=15, blank=True, null=True)
+    
+
+
     def save(self, *args, **kwargs):
-        if not self.agent_code:
-            self.agent_code = self._generate_agent_code()
+        if not self.agentCode:
+            self.agentCode = self._generate_agentCode()
         super().save(*args, **kwargs)
     
-    def _generate_agent_code(self):
-        """Generate unique 5-digit numerical code"""
+    def _generate_agentCode(self):
+        """Generate unique 6-digit numerical code"""
         while True:
-            code = str(random.randint(10000, 99999))  # 5-digit number
-            if not Agents.objects.filter(agent_code=code).exists():
+            code = str(random.randint(100000, 999999))  # 6-digit number
+            if not Agents.objects.filter(agentCode=code).exists():
                 return code
 class AgentApplication(models.Model):
     APPLICANT_TYPES = (

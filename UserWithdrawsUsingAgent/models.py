@@ -73,4 +73,4 @@ class AgentBalanceUpdate(models.Model):
             self.save()
 
     def __str__(self):
-        return f"User {self.user_email} -> Agent {self.agent.agent_code}: ${self.gross_amount}"
+        return f"User {self.user_email} -> Agent {self.agent.agentCode}: ${self.gross_amount}"

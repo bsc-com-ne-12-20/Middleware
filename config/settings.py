@@ -47,6 +47,8 @@ INSTALLED_APPS = [
     "agentTransfers",
     "agents",
     "UserWithdrawsUsingAgent",
+    'django_otp',  # OTP framework
+    'django_otp.plugins.otp_totp',  # Required for TOTPDevice
 ]
 
 MIDDLEWARE = [

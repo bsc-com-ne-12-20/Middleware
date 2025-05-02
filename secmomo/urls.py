@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path # type: ignore
 from .views import (
     auto_approve_agent, change_password, get_agent_username, get_balance,  register_agent, agent_login, agent_logout, agent_profile
 )
@@ -12,5 +12,7 @@ urlpatterns = [
     path('get-username/', get_agent_username, name='get_agent_username'),
     path('agent-balance/', get_balance, name='get-balance'),
     path('applications/auto-approve/', auto_approve_agent, name='auto-approve-agent'),
+    path('agent-login/', agent_login, name='agent_login'),
+    
 
 ]
