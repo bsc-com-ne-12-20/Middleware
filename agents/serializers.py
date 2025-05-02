@@ -17,7 +17,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agents
         fields = (
-            "agent_code",
+            "agentCode",
             "email",
             "current_balance",
             "phone_number",

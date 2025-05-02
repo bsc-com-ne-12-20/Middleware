@@ -19,11 +19,11 @@ class AgentListView(generics.ListCreateAPIView):
 # View to handle withdrawals
 class WithdrawView(APIView):
     def post(self, request):
-        agent_code = request.data.get('agent_code')
+        agentCode = request.data.get('agentCode')
         amount = request.data.get('amount')
 
         try:
-            agent = Agent.objects.get(agent_code=agent_code)
+            agent = Agent.objects.get(agentCode=agentCode)
         except Agent.DoesNotExist:
             return Response({"error": "Agent not found."}, status=status.HTTP_404_NOT_FOUND)
 

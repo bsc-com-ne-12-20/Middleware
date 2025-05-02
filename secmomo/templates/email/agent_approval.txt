@@ -3,7 +3,7 @@ Dear Agent,
 We are pleased to inform you that your agent application has been approved!
 
 Your agent details:
-- Agent Code: {{ agent.agent_code }}
+- Agent Code: {{ agent.agentCode }}
 - Username: {{ agent.email }}
 - Temporary Password: {{ temp_password }}
 

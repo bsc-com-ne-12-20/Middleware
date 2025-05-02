@@ -1,5 +1,4 @@
 from django.db import models
-from django.conf import settings
 from secmomo.models import Agents
 
 class Deposit(models.Model):
@@ -20,13 +19,17 @@ class Deposit(models.Model):
     class Meta:
         ordering = ['-timestamp']
 
-
 class AgentDepositHistory(models.Model):
-    agent = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    agent = models.ForeignKey(Agents, on_delete=models.CASCADE, related_name='deposit_history')
     user_email = models.EmailField(null=True, blank=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     transaction_id = models.CharField(max_length=12, unique=True)
     timestamp = models.DateTimeField(auto_now_add=True)
+    transaction_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    commission = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
 
     def __str__(self):
         return f"{self.agent.email} sent {self.amount} to {self.user_email}"
+
+    class Meta:
+        ordering = ['-timestamp']

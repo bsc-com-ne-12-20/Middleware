@@ -5,35 +5,39 @@ from decimal import Decimal
 
 
 class TransferSerializer(serializers.ModelSerializer):
-    sender_agent_code = serializers.CharField(write_only=True)
-    receiver_agent_code = serializers.CharField(write_only=True)
+    sender_agentCode = serializers.CharField(write_only=True)
+    receiver_agentCode = serializers.CharField(write_only=True)
     amount = serializers.DecimalField(max_digits=10, decimal_places=2)
     trans_id = serializers.CharField(read_only=True)
-    transaction_fee = serializers.DecimalField(
-        max_digits=10, decimal_places=2, read_only=True
-    )
+    transaction_fee = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+
+    # Add these fields for output
+    sender_agent = serializers.CharField(source='sender.agentCode', read_only=True)
+    receiver_agent = serializers.CharField(source='receiver.agentCode', read_only=True)
 
     class Meta:
         model = Transfer
         fields = [
-            "sender_agent_code",
-            "receiver_agent_code",
+            "sender_agentCode",
+            "receiver_agentCode",
             "amount",
             "transaction_fee",
             "trans_id",
             "time_stamp",
+            "sender_agent",  # Added for output
+            "receiver_agent",  # Added for output
         ]
 
     def validate(self, data):
-        sender_agent_code = data.get("sender_agent_code")
-        receiver_agent_code = data.get("receiver_agent_code")
+        sender_agentCode = data.get("sender_agentCode")
+        receiver_agentCode = data.get("receiver_agentCode")
         amount = data.get("amount")
 
-        if sender_agent_code == receiver_agent_code:
+        if sender_agentCode == receiver_agentCode:
             raise serializers.ValidationError("Sender and receiver cannot be the same.")
 
         try:
-            sender = Agents.objects.get(agent_code=sender_agent_code)
+            sender = Agents.objects.get(agentCode=sender_agentCode)
         except Agents.DoesNotExist:
             raise serializers.ValidationError("Sender agent does not exist.")
 
@@ -42,7 +46,7 @@ class TransferSerializer(serializers.ModelSerializer):
 
         if sender.current_balance < 500:
             raise serializers.ValidationError(
-                "Sender does not have enough balance. Please despodit to your account"
+                "Sender does not have enough balance. Please deposit to your account."
             )
 
         if sender.current_balance < total_amount:
@@ -51,20 +55,20 @@ class TransferSerializer(serializers.ModelSerializer):
             )
 
         try:
-            Agents.objects.get(agent_code=receiver_agent_code)
+            Agents.objects.get(agentCode=receiver_agentCode)
         except Agents.DoesNotExist:
             raise serializers.ValidationError("Receiver agent does not exist.")
 
         return data
 
     def create(self, validated_data):
-        sender_agent_code = validated_data.pop("sender_agent_code")
-        receiver_agent_code = validated_data.pop("receiver_agent_code")
+        sender_agentCode = validated_data.pop("sender_agentCode")
+        receiver_agentCode = validated_data.pop("receiver_agentCode")
         amount = validated_data["amount"]
         transaction_fee = amount * Decimal("0.03")
 
-        sender = Agents.objects.get(agent_code=sender_agent_code)
-        receiver = Agents.objects.get(agent_code=receiver_agent_code)
+        sender = Agents.objects.get(agentCode=sender_agentCode)
+        receiver = Agents.objects.get(agentCode=receiver_agentCode)
 
         sender.current_balance -= amount + transaction_fee
         receiver.current_balance += amount
@@ -101,6 +105,8 @@ class TransferHistorySerializer(serializers.ModelSerializer):
             "amount",
             "transaction_fee",
             "time_stamp",
+            "sender_agent",  # Added for output
+            "receiver_agent",  # Added for output
         ]
 
     def get_sender_name(self, obj):

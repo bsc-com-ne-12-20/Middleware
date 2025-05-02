@@ -9,11 +9,11 @@ from django.utils import timezone
 from django.urls import reverse
 from django.shortcuts import get_object_or_404
 from django.core.mail import send_mail
-from django.template.loader import render_to_string
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.views import APIView
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import update_session_auth_hash
 from .models import Agents, AgentApplication
@@ -22,7 +22,9 @@ from .serializers import (
     AgentLoginSerializer,
     ChangePasswordSerializer,
     AgentProfileSerializer,
-    SimpleAgentApplicationSerializer
+    SimpleAgentApplicationSerializer,
+    EmailToUsernameSerializer,
+    EmailToBalanceSerializer
 )
 
 logger = logging.getLogger(__name__)
@@ -33,16 +35,16 @@ def get_user_balance(email, auth_token):
     """Retrieve user balance from main backend"""
     try:
         response = requests.post(
-            'https://mtima.onrender.com/api/v1/accounts/get-balance/',
+            'http://127.0.0.1:8000/api/get-balance/',
             json={'email': email},
             headers={'Authorization': f'Bearer {auth_token}'},
-            timeout=5
+            timeout=15  # Increased from 5 to 15 seconds
         )
         response.raise_for_status()
         return float(response.json().get('balance', 0))
     except requests.exceptions.RequestException as e:
-        logger.error(f"Balance retrieval failed: {str(e)}")
-        raise
+        logger.warning(f"Balance retrieval failed: {str(e)}")
+        return None
 
 # Agent Registration
 @api_view(['POST'])
@@ -71,20 +73,53 @@ def register_agent(request):
 # Agent Login
 @api_view(['POST'])
 def agent_login(request):
-    """Authenticate agent and return token"""
+    """Authenticate agent"""
     serializer = AgentLoginSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.validated_data['user']
-        token, _ = Token.objects.get_or_create(user=user)
+        
+        # Refresh balance from external API (optional)
+        try:
+            token, _ = Token.objects.get_or_create(user=user)
+            balance = get_user_balance(user.email, token.key)
+            if balance is not None:
+                user.current_balance = balance
+                user.save()
+        except Exception as e:
+            logger.warning(f"Failed to update balance: {str(e)}")
+
+        # Generate token for login
         return Response({
             'token': token.key,
             'user': {
                 'email': user.email,
-                'agent_code': user.agent_code,
+                'agentCode': user.agentCode,
                 'balance': user.current_balance
             }
-        })
+        }, status=status.HTTP_200_OK)
     return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
+
+# Get Username by Email
+class EmailToUsernameView(APIView):
+    def post(self, request, *args, **kwargs):
+        serializer = EmailToUsernameSerializer(data=request.data)
+        if serializer.is_valid():
+            username = serializer.get_username()
+            return Response({'username': username}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# Get Balance by Email
+class EmailToBalanceView(APIView):
+    def post(self, request, *args, **kwargs):
+        serializer = EmailToBalanceSerializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
+            try:
+                balance = serializer.get_balance()
+                return Response({'balance': balance}, status=status.HTTP_200_OK)
+            except Exception as e:
+                return Response({'error': f'Failed to retrieve balance: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # Auto-Approval Endpoint
 @api_view(['POST'])
@@ -99,39 +134,35 @@ def auto_approve_agent(request):
         phone_number = serializer.validated_data['phone_number']
         balance = float(request.data.get('balance', 0))
 
-        ## Check for existing email
         if Agents.objects.filter(email=email).exists():
             return Response(
                 {'error': 'Email already registered.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Verify minimum balance
         if balance < MINIMUM_BALANCE:
             AgentApplication.objects.create(
                 username=username,
                 email=email,
                 phone_number=phone_number,
                 status='rejected',
-                verification_notes=f"Balance {balance} > {MINIMUM_BALANCE}"
+                verification_notes=f"Balance {balance} < {MINIMUM_BALANCE}"
             )
             return Response(
                 {'error': f'Minimum balance not met (requires {MINIMUM_BALANCE} MWK)'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Generate credentials
         temp_password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
-        agent_code = ''.join(random.choices(string.digits, k=5))
+        agentCode = ''.join(random.choices(string.digits, k=6))
 
-        # Create records
         with transaction.atomic():
             agent = Agents.objects.create_user(
                 username=username,
                 email=email,
                 password=temp_password,
                 phone_number=phone_number,
-                agent_code=agent_code,
+                agentCode=agentCode,
                 current_balance=balance,
                 status='active',
                 is_active=True
@@ -145,15 +176,14 @@ def auto_approve_agent(request):
                 reviewed_at=timezone.now()
             )
 
-        # Send credentials
-        login_url = 'https://pamomo-agent.netlify.app'  # Update with your frontend URL
+        login_url = 'https://pamomo-agent.netlify.app'
         email_body = f"""Dear {username},
 
 We are pleased to inform you that your agent application has been approved!
 
 Your agent details: 
 - Username: {username}
-- Agent Code: {agent_code}
+- Agent Code: {agentCode}
 - Password: {temp_password}
 
 Please login to the agent portal using the following link:
@@ -176,7 +206,7 @@ The Secure MoMo Team"""
         return Response({
             'status': 'approved',
             'username': username,
-            'agent_code': agent_code,
+            'agentCode': agentCode,
             'email': email,
             'balance': balance
         }, status=status.HTTP_201_CREATED)
@@ -187,6 +217,7 @@ The Secure MoMo Team"""
             {'error': 'Internal server error'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
 # Agent Profile
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -224,37 +255,33 @@ def admin_approve_agent(request, agent_id):
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    # Generate credentials
     temp_password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
-    agent_code = ''.join(random.choices(string.digits, k=5))
+    agentCode = ''.join(random.choices(string.digits, k=5))
 
-    # Create agent
     agent = Agents.objects.create_user(
         username=application.email,
         email=application.email,
         password=temp_password,
         phone_number=application.phone_number,
-        agent_code=agent_code,
+        agentCode=agentCode,
         status='active'
     )
 
-    # Update application
     application.status = 'approved'
     application.reviewed_by = request.user
     application.reviewed_at = timezone.now()
     application.save()
 
-    # Send email
     send_mail(
         'Agent Account Approved',
-        f'Your agent code: {agent_code}\nTemp password: {temp_password}',
+        f'Your agent code: {agentCode}\nTemp password: {temp_password}',
         settings.DEFAULT_FROM_EMAIL,
         [application.email],
         fail_silently=False
     )
 
     return Response({
-        'agent_code': agent_code,
+        'agentCode': agentCode,
         'email': application.email
     })
 

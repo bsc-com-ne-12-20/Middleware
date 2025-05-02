@@ -35,6 +35,8 @@ INSTALLED_APPS = [
     #my app
     'agents',
     'rest_framework',
+    'django_otp',
+    'django_otp.plugins.otp_totp',
     #default apps
     'django.contrib.admin',
     'django.contrib.auth',
