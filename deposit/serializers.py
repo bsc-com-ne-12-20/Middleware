@@ -6,39 +6,25 @@ import requests
 from secmomo.models import Agents
 from .models import AgentDepositHistory
 
-class AgentDepositHistorySerializer(serializers.ModelSerializer):
-    trans_id = serializers.CharField(source='transaction_id')
-    sender = serializers.CharField(source='agent.email')
-    receiver = serializers.CharField(source='user_email', allow_null=True)
-    amount = serializers.DecimalField(max_digits=10, decimal_places=2, coerce_to_string=True)
-    transaction_fee = serializers.DecimalField(max_digits=10, decimal_places=2, coerce_to_string=True)
-    time_stamp = serializers.DateTimeField(source='timestamp')
-    commission = serializers.DecimalField(max_digits=10, decimal_places=2, coerce_to_string=True)
-    agentCode = serializers.CharField(source='agent.agentCode')
-
-    class Meta:
-        model = AgentDepositHistory
-        fields = ['trans_id', 'sender', 'receiver', 'amount', 'transaction_fee', 'time_stamp', 'commission', 'agentCode']
-
 class AgentDepositSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(write_only=True)
     amount = serializers.DecimalField(max_digits=10, decimal_places=2)
-    agentCode = serializers.CharField(write_only=True)
+    agent_code = serializers.CharField(write_only=True)
     transaction_id = serializers.CharField(read_only=True)
 
     class Meta:
         model = AgentDepositHistory
-        fields = ['agentCode', 'email', 'amount', 'transaction_id', 'timestamp']
+        fields = ['agent_code', 'email', 'amount', 'transaction_id', 'timestamp']
 
     def validate(self, data):
-        # For authorized use only, use:
-        # agent = self.context['request'].user
-        agentCode = data.get("agentCode")
+        #for authorized use only use 
+        #agent = self.context['request'].user(remove agent code)
+        agent_code = data.get("agent_code")
         amount = data.get("amount")
 
         # Fetch agent using the provided agent code
         try:
-            agent = Agents.objects.get(agentCode=agentCode)
+            agent = Agents.objects.get(agent_code=agent_code)#this line will be removed for authenticated user
         except Agents.DoesNotExist:
             raise serializers.ValidationError("Agent with this code does not exist.")
 
@@ -52,9 +38,8 @@ class AgentDepositSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         agent = validated_data.pop("agent")  # Get the agent instance
-        user_email = validated_data.get("email")  # Get the user email
+        user_email = validated_data["email"]  # Get the user email
         amount = validated_data["amount"]
-        commission = amount * Decimal('0.02')  # Calculate 2% commission
         transaction_id = uuid.uuid4().hex[:12].upper()  # Generate a unique transaction ID
 
         # Prepare the payload for the external deposit API
@@ -80,21 +65,17 @@ class AgentDepositSerializer(serializers.ModelSerializer):
                 agent=agent,
                 user_email=user_email,
                 amount=amount,
-                transaction_id=transaction_id,
-                transaction_fee=Decimal('0.00'),
-                commission=commission
+                transaction_id=transaction_id
             )
 
             # Prepare and return the custom response format
             return {
-                "agentCode": agent.agentCode,
+                "agent_code": agent.agent_code,
                 "receiver_email": user_email,
                 "status": "success",
                 "amount": str(amount),
                 "transaction_id": transaction_id,
-                "timestamp": deposit.timestamp,
-                "transaction_fee": "0.00",
-                "commission": str(commission)
+                "timestamp": deposit.timestamp
             }
         else:
             # Handle errors from the external API
@@ -102,3 +83,9 @@ class AgentDepositSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 "external_api_error": error_details
             })
+
+
+class AgentDepositHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AgentDepositHistory
+        fields = ['transaction_id', 'user_email', 'amount', 'timestamp']
