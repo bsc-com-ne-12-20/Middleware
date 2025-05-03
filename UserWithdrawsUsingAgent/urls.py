@@ -14,7 +14,7 @@ urlpatterns = [
     ),
     # Agent transaction history
     path(
-        "Widraw-to-agent-history/",
+        "Wdr-to-agent-hstr/",
         AgentTransactionHistoryAPIView.as_view(),
         name="agent-transactions",
     ),

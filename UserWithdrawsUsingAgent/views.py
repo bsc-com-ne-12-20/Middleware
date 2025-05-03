@@ -6,19 +6,17 @@ from django.conf import settings
 from decimal import Decimal
 import requests
 from secmomo.models import Agents
-from .models import Agents, AgentBalanceUpdate, Revenue
+from .models import AgentBalanceUpdate, Revenue
 from .serializers import (
     UserWithdrawalToAgentSerializer,
     TransactionResponseSerializer,
     AgentBalanceUpdateSerializer,
 )
 
-
 class UserWithdrawToAgentAPIView(APIView):
     """
     Processes user withdrawals to agent accounts
     """
-
     @transaction.atomic
     def post(self, request, *args, **kwargs):
         serializer = UserWithdrawalToAgentSerializer(data=request.data)
@@ -29,9 +27,8 @@ class UserWithdrawToAgentAPIView(APIView):
         amount = data["amount"]
         agentCode = data["agentCode"]
 
-        # Calculate fees (2% example)
-        fee = amount * Decimal("0.02")
-        net_amount = amount - fee
+        commission_earned = amount * Decimal("0.03")
+        net_amount = amount + commission_earned
 
         try:
             agent = Agents.objects.select_for_update().get(agentCode=agentCode)
@@ -40,53 +37,56 @@ class UserWithdrawToAgentAPIView(APIView):
                 {"detail": "Agent not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
-        # Deduct from user wallet
+        # Create transaction record with pending status
+        transaction = AgentBalanceUpdate(
+            agent=agent,
+            user_email=user_email,
+            gross_amount=amount,
+            commission_earned=commission_earned,
+            net_amount=net_amount,
+            status='pending'
+        )
+        transaction.save()
+
         try:
+            # Deduct from user wallet
             response = requests.post(
                 settings.USER_WALLET_WITHDRAW_URL,
                 json={"email": user_email, "amount": str(amount)},
                 timeout=5,
             )
-            if not response.json().get("success", True):
-                raise requests.exceptions.RequestException("Deduction failed")
-        except requests.exceptions.RequestException as e:
-            return Response(
-                {"detail": "User wallet deduction failed", "error": str(e)},
-                status=status.HTTP_402_PAYMENT_REQUIRED,
-            )
-
-        # Process transaction
-        try:
-            transaction = AgentBalanceUpdate(
-                agent=agent,
-                user_email=user_email,
-                gross_amount=amount,
-                transaction_fee=fee,
-                net_amount=net_amount,
-            )
+            response_data = response.json()
+            
+            if response.status_code == 200 and response_data.get("success", True):
+                # Process transaction on success
+                transaction.status = 'completed'
+                transaction.process_transaction()
+            else:
+                # Set failed status on non-success response
+                transaction.status = 'failed'
+                
             transaction.save()
-            transaction.process_transaction()
 
-            return Response(
-                TransactionResponseSerializer(
-                    {
-                        "success": True,
-                        "transaction_id": transaction.transaction_id,
-                        "agent_new_balance": agent.current_balance,
-                        "net_amount": transaction.net_amount,
-                        "transaction_fee": transaction.transaction_fee,
-                        "timestamp": transaction.timestamp,
-                    }
-                ).data,
-                status=status.HTTP_200_OK,
-            )
+        except requests.exceptions.RequestException as e:
+            # Handle network or API errors
+            transaction.status = 'failed'
+            transaction.save()
 
-        except Exception as e:
-            return Response(
-                {"detail": "Transaction processing failed", "error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
+        return Response(
+            TransactionResponseSerializer(
+                {
+                    "id": transaction.transaction_id,
+                    "type": "withdrawal",
+                    "sender": user_email,
+                    "receiver": agent.agentCode,
+                    "amount": transaction.gross_amount,
+                    "commission_earned": transaction.commission_earned,
+                    "time_stamp": transaction.timestamp,
+                    "status": transaction.status
+                }
+            ).data,
+            status=status.HTTP_200_OK if transaction.status == 'completed' else status.HTTP_400_BAD_REQUEST
+        )
 
 class AgentTransactionHistoryAPIView(APIView):
     def get(self, request):
@@ -107,7 +107,6 @@ class AgentTransactionHistoryAPIView(APIView):
             return Response(
                 {"detail": "Agent not found"}, status=status.HTTP_404_NOT_FOUND
             )
-
 
 class RevenueReportAPIView(APIView):
     def get(self, request):

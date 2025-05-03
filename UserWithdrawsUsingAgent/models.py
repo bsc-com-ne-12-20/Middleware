@@ -5,12 +5,10 @@ from django.db import transaction
 from django.db.models import F
 from secmomo.models import Agents
 
-
 class Revenue(models.Model):
     """
     Tracks all transaction fees collected
     """
-
     total_fees = models.DecimalField(
         max_digits=12, decimal_places=2, default=Decimal("0.00")
     )
@@ -30,17 +28,21 @@ class Revenue(models.Model):
     def __str__(self):
         return f"Total Revenue: {self.total_fees}"
 
-
 class AgentBalanceUpdate(models.Model):
     agent = models.ForeignKey(
         "secmomo.Agents", on_delete=models.CASCADE, related_name="balance_updates"
     )
     user_email = models.EmailField()
     gross_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    transaction_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    net_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    commission_earned = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    net_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     transaction_id = models.CharField(max_length=12, unique=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=(
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+    ), default='completed')
 
     class Meta:
         ordering = ["-timestamp"]
@@ -52,8 +54,9 @@ class AgentBalanceUpdate(models.Model):
         if self.gross_amount <= 0:
             raise ValueError("Amount must be positive")
 
-        if not hasattr(self, "net_amount"):
-            self.net_amount = self.gross_amount - self.transaction_fee
+        # Calculate net_amount only if not provided
+        if self.net_amount is None:
+            self.net_amount = self.gross_amount - self.commission_earned
 
         super().save(*args, **kwargs)
 
@@ -66,7 +69,7 @@ class AgentBalanceUpdate(models.Model):
             )
 
             # Add fee to revenue
-            Revenue.add_fee(self.transaction_fee)
+            Revenue.add_fee(self.commission_earned)
 
             # Refresh instances
             self.agent.refresh_from_db()
