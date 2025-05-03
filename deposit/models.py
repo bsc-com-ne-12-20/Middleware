@@ -26,7 +26,12 @@ class AgentDepositHistory(models.Model):
     transaction_id = models.CharField(max_length=12, unique=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     transaction_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    commission = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    commission_earned = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    status = models.CharField(max_length=20, choices=(
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+    ), default='completed')
 
     def __str__(self):
         return f"{self.agent.email} sent {self.amount} to {self.user_email}"

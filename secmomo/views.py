@@ -101,15 +101,21 @@ def agent_login(request):
 
 # Get Username by Email
 class EmailToUsernameView(APIView):
+    #@permission_classes([IsAuthenticated])
     def post(self, request, *args, **kwargs):
         serializer = EmailToUsernameSerializer(data=request.data)
         if serializer.is_valid():
-            username = serializer.get_username()
-            return Response({'username': username}, status=status.HTTP_200_OK)
+            email = serializer.validated_data['email']
+            try:
+                username = serializer.get_username()
+                return Response({'username': username}, status=status.HTTP_200_OK)
+            except Exception as e:
+                return Response({'error': f'Failed to retrieve username: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # Get Balance by Email
 class EmailToBalanceView(APIView):
+    #@permission_classes([IsAuthenticated])
     def post(self, request, *args, **kwargs):
         serializer = EmailToBalanceSerializer(data=request.data)
         if serializer.is_valid():
@@ -293,16 +299,16 @@ def agent_logout(request):
     request.user.auth_token.delete()
     return Response({'message': 'Logged out successfully'})
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@api_view(['POST'])
+#@permission_classes([IsAuthenticated])
 def get_agent_username(request):
     """Get agent username by agent code"""
-    agent_code = request.query_params.get('agent_code')
+    agentCode = request.query_params.get('agentCode')
 
-    if not agent_code:
+    if not agentCode:
         return Response({'error': 'Agent code is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-    agent = get_object_or_404(Agents, agent_code=agent_code)
+    agent = get_object_or_404(Agents, agentCode=agentCode)
     return Response({'username': agent.username}, status=status.HTTP_200_OK)
 
 #handling get balance on frontend of an logged in agent
@@ -325,13 +331,13 @@ def get_balance(request):
     """
     Return the current balance for the given agent code.
     """
-    agent_code = request.data.get('agent_code')
+    agentCode = request.data.get('agentCode')
 
-    if not agent_code:
+    if not agentCode:
         return Response({'error': 'Agent code is required'}, status=400)
 
     try:
-        agent = Agents.objects.get(agent_code=agent_code)
+        agent = Agents.objects.get(agent_code=agentCode)
         return Response({
             'balance': agent.current_balance
         }, status=200)

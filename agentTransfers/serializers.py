@@ -3,30 +3,21 @@ from secmomo.models import Agents
 from .models import Revenue, Transfer
 from decimal import Decimal
 
-
 class TransferSerializer(serializers.ModelSerializer):
     sender_agentCode = serializers.CharField(write_only=True)
     receiver_agentCode = serializers.CharField(write_only=True)
     amount = serializers.DecimalField(max_digits=10, decimal_places=2)
-    trans_id = serializers.CharField(read_only=True)
-    transaction_fee = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
-
-    # Add these fields for output
-    sender_agent = serializers.CharField(source='sender.agentCode', read_only=True)
-    receiver_agent = serializers.CharField(source='receiver.agentCode', read_only=True)
+    id = serializers.CharField(source='trans_id', read_only=True)
+    sender = serializers.CharField(source='sender.agentCode', read_only=True)
+    receiver = serializers.CharField(source='receiver.agentCode', read_only=True)
+    type = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Transfer
-        fields = [
-            "sender_agentCode",
-            "receiver_agentCode",
-            "amount",
-            "transaction_fee",
-            "trans_id",
-            "time_stamp",
-            "sender_agent",  # Added for output
-            "receiver_agent",  # Added for output
-        ]
+        fields = ['id', 'type', 'sender', 'receiver', 'amount', 'commission_earned', 'time_stamp', 'status', 'sender_agentCode', 'receiver_agentCode']
+
+    def get_type(self, obj):
+        return "transfer"
 
     def validate(self, data):
         sender_agentCode = data.get("sender_agentCode")
@@ -41,21 +32,8 @@ class TransferSerializer(serializers.ModelSerializer):
         except Agents.DoesNotExist:
             raise serializers.ValidationError("Sender agent does not exist.")
 
-        transaction_fee = amount * Decimal("0.03")
-        total_amount = amount + transaction_fee
-
-        if sender.current_balance < 500:
-            raise serializers.ValidationError(
-                "Sender does not have enough balance. Please deposit to your account."
-            )
-
-        if sender.current_balance < total_amount:
-            raise serializers.ValidationError(
-                "Sender does not have enough balance to cover the transaction and fee."
-            )
-
         try:
-            Agents.objects.get(agentCode=receiver_agentCode)
+            receiver = Agents.objects.get(agentCode=receiver_agentCode)
         except Agents.DoesNotExist:
             raise serializers.ValidationError("Receiver agent does not exist.")
 
@@ -65,52 +43,63 @@ class TransferSerializer(serializers.ModelSerializer):
         sender_agentCode = validated_data.pop("sender_agentCode")
         receiver_agentCode = validated_data.pop("receiver_agentCode")
         amount = validated_data["amount"]
-        transaction_fee = amount * Decimal("0.03")
+        commission_earned = amount * Decimal("0.02")
 
         sender = Agents.objects.get(agentCode=sender_agentCode)
         receiver = Agents.objects.get(agentCode=receiver_agentCode)
 
-        sender.current_balance -= amount + transaction_fee
-        receiver.current_balance += amount
-
-        sender.save()
-        receiver.save()
-
-        Revenue.add_fee(transaction_fee)
-
-        transfer = Transfer.objects.create(
+        # Create transfer with pending status
+        transfer = Transfer(
             sender=sender,
             receiver=receiver,
             amount=amount,
-            transaction_fee=transaction_fee,
+            commission_earned=commission_earned,
+            status='pending'
         )
+
+        try:
+            # Validate balance
+            total_amount = amount + commission_earned
+            if sender.current_balance < 500:
+                transfer.status = 'failed'
+                transfer.save()
+                raise serializers.ValidationError(
+                    "Sender does not have enough balance. Please deposit to your account."
+                )
+            if sender.current_balance < total_amount:
+                transfer.status = 'failed'
+                transfer.save()
+                raise serializers.ValidationError(
+                    "Sender does not have enough balance to cover the transaction and fee."
+                )
+
+            # Update balances and revenue
+            sender.current_balance -= total_amount
+            receiver.current_balance += amount
+            sender.save()
+            receiver.save()
+            Revenue.add_fee(commission_earned)
+
+            # Set status to completed
+            transfer.status = 'completed'
+            transfer.save()
+
+        except serializers.ValidationError as e:
+            # Return failed transfer with error message
+            return transfer
 
         return transfer
 
-
 class TransferHistorySerializer(serializers.ModelSerializer):
-    sender_name = serializers.SerializerMethodField()
-    sender_email = serializers.EmailField(source="sender.email")
-    receiver_name = serializers.SerializerMethodField()
-    receiver_email = serializers.EmailField(source="receiver.email")
+    id = serializers.CharField(source='trans_id')
+    type = serializers.SerializerMethodField()
+    sender = serializers.CharField(source='sender.agentCode')
+    receiver = serializers.CharField(source='receiver.agentCode')
+    time_stamp = serializers.DateTimeField()
 
     class Meta:
         model = Transfer
-        fields = [
-            "trans_id",
-            "sender_name",
-            "sender_email",
-            "receiver_name",
-            "receiver_email",
-            "amount",
-            "transaction_fee",
-            "time_stamp",
-            "sender_agent",  # Added for output
-            "receiver_agent",  # Added for output
-        ]
+        fields = ['id', 'type', 'sender', 'receiver', 'amount', 'commission_earned', 'time_stamp', 'status']
 
-    def get_sender_name(self, obj):
-        return f"{obj.sender.username}"
-
-    def get_receiver_name(self, obj):
-        return f"{obj.receiver.username}"
+    def get_type(self, obj):
+        return "transfer"
