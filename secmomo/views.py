@@ -337,7 +337,7 @@ def get_balance(request):
         return Response({'error': 'Agent code is required'}, status=400)
 
     try:
-        agent = Agents.objects.get(agent_code=agentCode)
+        agent = Agents.objects.get(agentCode=agentCode)
         return Response({
             'balance': agent.current_balance
         }, status=200)

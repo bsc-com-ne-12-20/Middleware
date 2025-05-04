@@ -1,7 +1,9 @@
 from django.contrib import admin
 from .models import Transfer
-from .models import Revenue
 
-# Register your models here.
-admin.site.register(Transfer)
-admin.site.register(Revenue)
+@admin.register(Transfer)
+class TransferAdmin(admin.ModelAdmin):
+    list_display = ('trans_id', 'sender_email', 'receiver_email', 'amount', 'commission_earned', 'status', 'time_stamp')
+    list_filter = ('status', 'time_stamp')
+    search_fields = ('trans_id', 'sender_email', 'receiver_email', 'sender__agentCode', 'receiver__agentCode')
+    ordering = ('-time_stamp',)
