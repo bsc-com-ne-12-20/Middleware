@@ -1,7 +1,10 @@
+
+# transfer/serializers.py
 from rest_framework import serializers
 from secmomo.models import Agents
-from .models import Revenue, Transfer
+from .models import Transfer
 from decimal import Decimal
+from UserWithdrawsUsingAgent.models import Revenue
 
 class TransferSerializer(serializers.ModelSerializer):
     sender_agentCode = serializers.CharField(write_only=True)
@@ -37,6 +40,10 @@ class TransferSerializer(serializers.ModelSerializer):
         except Agents.DoesNotExist:
             raise serializers.ValidationError("Receiver agent does not exist.")
 
+        total_amount = amount + (amount * Decimal("0.02"))
+        if sender.current_balance < total_amount:
+            raise serializers.ValidationError("Sender does not have enough balance.")
+
         return data
 
     def create(self, validated_data):
@@ -48,45 +55,28 @@ class TransferSerializer(serializers.ModelSerializer):
         sender = Agents.objects.get(agentCode=sender_agentCode)
         receiver = Agents.objects.get(agentCode=receiver_agentCode)
 
-        # Create transfer with pending status
         transfer = Transfer(
             sender=sender,
             receiver=receiver,
+            sender_email=sender.email,
+            receiver_email=receiver.email,
             amount=amount,
             commission_earned=commission_earned,
             status='pending'
         )
 
         try:
-            # Validate balance
             total_amount = amount + commission_earned
-            if sender.current_balance < 500:
-                transfer.status = 'failed'
-                transfer.save()
-                raise serializers.ValidationError(
-                    "Sender does not have enough balance. Please deposit to your account."
-                )
-            if sender.current_balance < total_amount:
-                transfer.status = 'failed'
-                transfer.save()
-                raise serializers.ValidationError(
-                    "Sender does not have enough balance to cover the transaction and fee."
-                )
-
-            # Update balances and revenue
             sender.current_balance -= total_amount
             receiver.current_balance += amount
             sender.save()
             receiver.save()
             Revenue.add_fee(commission_earned)
-
-            # Set status to completed
             transfer.status = 'completed'
             transfer.save()
-
-        except serializers.ValidationError as e:
-            # Return failed transfer with error message
-            return transfer
+        except Exception:
+            transfer.status = 'failed'
+            transfer.save()
 
         return transfer
 
