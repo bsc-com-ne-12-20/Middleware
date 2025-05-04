@@ -171,9 +171,8 @@ REST_FRAMEWORK = {
 
 # corseheaders
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5174",  # for local testing
+    "http://localhost:5173",  # for local testing
     "https://pamomo-agent.netlify.app",
-    "http://localhost:5173",
 ]
 
 CORS_ALLOW_CREDENTIALS = True

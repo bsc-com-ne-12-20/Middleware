@@ -48,7 +48,7 @@ class UserWithdrawToAgentAPIView(APIView):
 
         try:
             response = requests.post(
-                "https://mtima.onrender.com/api/v1/wdr/",  # Placeholder external API
+                settings.USER_WALLET_WITHDRAW_URL,  # Use configurable setting
                 json={"email": sender_email, "amount": str(amount)},
                 timeout=5,
             )
