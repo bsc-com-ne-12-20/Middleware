@@ -39,6 +39,7 @@ class UserWithdrawToAgentAPIView(APIView):
             agent=agent,
             sender_email=sender_email,
             receiver_email=agent.email,
+            receiver=agent.agentCode,
             gross_amount=amount,
             commission_earned=commission_earned,
             net_amount=net_amount,
