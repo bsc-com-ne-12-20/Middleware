@@ -14,7 +14,7 @@ class AgentWithdrawalHistorySerializer(serializers.ModelSerializer):
     id = serializers.CharField(source='transaction_id')
     type = serializers.SerializerMethodField()
     sender = serializers.CharField(source='sender_email')
-    receiver = serializers.CharField(source='receiver_email')
+    receiver = serializers.CharField(source='agent.agentCode') 
     amount = serializers.DecimalField(source='gross_amount', max_digits=10, decimal_places=2)
     time_stamp = serializers.DateTimeField(source='timestamp')
 

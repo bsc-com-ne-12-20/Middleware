@@ -65,4 +65,4 @@ class AgentWithdrawalHistory(models.Model):
             self.save()
 
     def __str__(self):
-        return f"{self.sender_email} -> {self.receiver_email}: ${self.gross_amount}"
+        return f"{self.sender_email} -> {self.agent.agentCode}: ${self.gross_amount}"
