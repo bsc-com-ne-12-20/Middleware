@@ -29,5 +29,5 @@ urlpatterns = [
     path("api/v1/dpst/", include("deposit.urls")),
     path("api/v1/agent-trsf/", include("agentTransfers.urls")),
     path("api/v1/agent-usr/", include("agents.urls")),
-    path("api/v1/wdr/", include("UserWithdrawsUsingAgent.urls")),
+    path("api/v1/wtdr/", include("UserWithdrawsUsingAgent.urls")),
 ]
