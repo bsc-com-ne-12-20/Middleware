@@ -20,7 +20,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-s8r#l8lfra=k!9e=++p5hhn5rblilcuc%fs*#k#=168tp9-m%$'
+SECRET_KEY = "django-insecure-s8r#l8lfra=k!9e=++p5hhn5rblilcuc%fs*#k#=168tp9-m%$"
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -31,52 +31,65 @@ ALLOWED_HOSTS = ["*"]
 # Application definition
 
 INSTALLED_APPS = [
-    'rest_framework',  #for API
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'rest_framework.authtoken',
-    'django_rest_passwordreset',
-    'corsheaders',  
-
-    'secmomo',
-    'config',
+    "rest_framework",  # for API
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "rest_framework.authtoken",
+    "django_rest_passwordreset",
+    "corsheaders",
+    "secmomo",
+    "deposit",
+    "config",
+    "agentTransfers",
+    "agents",
+    "UserWithdrawsUsingAgent",
 ]
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'my_cache_table',
+    }
+}
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
 ]
 
-ROOT_URLCONF = 'config.urls'
+ROOT_URLCONF = "config.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'DIRS': [BASE_DIR, 'templates/',],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "DIRS": [
+            BASE_DIR,
+            "templates/",
+        ],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'config.wsgi.application'
+WSGI_APPLICATION = "config.wsgi.application"
 
 
 # Database
@@ -97,12 +110,11 @@ WSGI_APPLICATION = 'config.wsgi.application'
 }
 """
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
     }
 }
-
 
 
 # Password validation
@@ -110,16 +122,16 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
@@ -127,9 +139,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = "UTC"
 
 USE_I18N = True
 
@@ -139,58 +151,67 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = "static/"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
-AUTH_USER_MODEL = 'secmomo.Agents'
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+AUTH_USER_MODEL = "secmomo.Agents"
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.BasicAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
-        'rest_framework.authentication.TokenAuthentication',
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.BasicAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+        "rest_framework.authentication.TokenAuthentication",
     ]
 }
 
-#corseheaders 
+# corseheaders
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",#for local testing
+    "http://localhost:5173",  # for local testing
     "https://pamomo-agent.netlify.app",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
 # Email Backend Configuration
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'  # Replace with your preferred backend
+EMAIL_BACKEND = (
+    "django.core.mail.backends.smtp.EmailBackend"  # Replace with your preferred backend
+)
 EMAIL_PORT = 587  # Replace with your email port
 EMAIL_USE_TLS = True  # Set to False if your email server doesn't use TLS
-EMAIL_HOST = 'smtp.gmail.com'  # Replace with your email host for gmail -> 'smtp.gmail.com'
-EMAIL_HOST_USER = 'secmomo.africa@gmail.com'  # Replace with your email username
-EMAIL_HOST_PASSWORD = 'opax aets psra vmas'  # Replace with your email password
-DEFAULT_FROM_EMAIL = 'secmomo.africa@gmail.com'
+EMAIL_HOST = (
+    "smtp.gmail.com"  # Replace with your email host for gmail -> 'smtp.gmail.com'
+)
+EMAIL_HOST_USER = "secmomo.africa@gmail.com"  # Replace with your email username
+EMAIL_HOST_PASSWORD = "opax aets psra vmas"  # Replace with your email password
+DEFAULT_FROM_EMAIL = "secmomo.africa@gmail.com"
 
-#mobile money wallet api integration
+# mobile money wallet api integration
 MOBILE_MONEY_API_BASE_URL = "https://mtima.onrender.com"
-MOBILE_MONEY_API_KEY = 'django-insecure-s2tg3=atqffz(89l5ysngb*kj&y*6y=0n5l&0&&=&uw!vs)f2e'
-API_REQUEST_TIMEOUT = 30  # seconds 
-ADMIN_EMAIL = "secmomo.africa@gmail.com"  
-AGENT_PORTAL_URL = 'https://pamomo-agent.netlify.app/login'
+MOBILE_MONEY_API_KEY = (
+    "django-insecure-s2tg3=atqffz(89l5ysngb*kj&y*6y=0n5l&0&&=&uw!vs)f2e"
+)
+API_REQUEST_TIMEOUT = 30  # seconds
+ADMIN_EMAIL = "secmomo.africa@gmail.com"
+AGENT_PORTAL_URL = "https://pamomo-agent.netlify.app/login"
+# settings.py (Agent API)
+USER_WALLET_WITHDRAW_URL = "https://mtima.onrender.com/api/v1/wtdr/"  
+
 
 # Logging Configuration
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
         },
     },
-    'loggers': {
-        'secmomo.utils': {
-            'handlers': ['console'],
-            'level': 'DEBUG',
+    "loggers": {
+        "secmomo.utils": {
+            "handlers": ["console"],
+            "level": "DEBUG",
         },
     },
 }
