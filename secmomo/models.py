@@ -16,7 +16,7 @@ class Agents(AbstractUser):
     status = models.CharField(max_length=10, choices=AGENT_STATUS, default='pending')
     mobile_money_user_id = models.PositiveIntegerField(null=True, blank=True)
     current_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
-    phone_number = models.CharField(max_length=15, blank=True, null=True)
+    phone_number = models.CharField(max_length=15, blank=True)
     
     def save(self, *args, **kwargs):
         if not self.agent_code:
