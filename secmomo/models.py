@@ -21,7 +21,7 @@ class Agents(AbstractUser):
     
 """
 
-
+# ✅ Final Agents model version (used as AUTH_USER_MODEL)
 class Agents(AbstractUser):
     AGENT_STATUS = (
         ('pending', 'Pending Approval'),
@@ -34,8 +34,6 @@ class Agents(AbstractUser):
     mobile_money_user_id = models.PositiveIntegerField(null=True, blank=True)
     current_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     phone_number = models.CharField(max_length=15, blank=True, null=True)
-    
-
 
     def save(self, *args, **kwargs):
         if not self.agentCode:
@@ -48,6 +46,11 @@ class Agents(AbstractUser):
             code = str(random.randint(100000, 999999))  # 6-digit number
             if not Agents.objects.filter(agentCode=code).exists():
                 return code
+
+    def __str__(self):
+        return f"{self.username} ({self.agentCode})"
+
+
 class AgentApplication(models.Model):
     APPLICANT_TYPES = (
         ('individual', 'Individual'),
