@@ -1,3 +1,4 @@
+from django.forms import ValidationError
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -77,8 +78,18 @@ class UserWithdrawToAgentAPIView(APIView):
                 or ("trans_id" in response_data)
             ):  # Also consider it successful if it has transaction ID
 
-                withdrawal.status = "completed"
-                withdrawal.process_transaction()
+                try:
+                    agent.add_to_balance(net_amount)
+                    withdrawal.status = "completed"
+                    withdrawal.process_transaction()
+                except ValidationError as e:
+                    withdrawal.status = "failed"
+                    logger.error(f"Balance limit exceeded for agent {agent.agentCode}: {str(e)}")
+                    return Response(
+                        {"detail": str(e)},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
                 logger.info(
                     f"Success: Withdrawal {withdrawal.transaction_id} processed. "
                     f"Amount: {amount}, Agent: {agent_code}"

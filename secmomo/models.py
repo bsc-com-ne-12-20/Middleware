@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 import random
 import string
+from django.core.exceptions import ValidationError
 
 """
 class Agents(AbstractUser):
@@ -32,6 +33,15 @@ class Agents(AbstractUser):
     mobile_money_user_id = models.PositiveIntegerField(null=True, blank=True)
     current_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     phone_number = models.CharField(max_length=15, blank=True, null=True)
+    
+    MAX_BALANCE = 1_000_000.00  # Define the max balance
+
+    def add_to_balance(self, amount):
+        """Safely add amount to balance with validation."""
+        if self.current_balance + amount > self.MAX_BALANCE:
+            raise ValidationError("Agent balance cannot exceed 1,000,000.00.")
+        self.current_balance += amount
+        self.save()
 
     def save(self, *args, **kwargs):
         if not self.agentCode:
