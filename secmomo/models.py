@@ -1,7 +1,5 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
-from django.core.mail import send_mail
-from django.conf import settings
 import random
 import string
 
@@ -38,6 +36,11 @@ class Agents(AbstractUser):
     def save(self, *args, **kwargs):
         if not self.agentCode:
             self.agentCode = self._generate_agentCode()
+
+        # Ensure unique username, if it's not provided, auto-generate one
+        if not self.username:
+            self.username = self._generate_unique_username()
+
         super().save(*args, **kwargs)
     
     def _generate_agentCode(self):
@@ -46,6 +49,13 @@ class Agents(AbstractUser):
             code = str(random.randint(100000, 999999))  # 6-digit number
             if not Agents.objects.filter(agentCode=code).exists():
                 return code
+
+    def _generate_unique_username(self):
+        """Generate unique username"""
+        while True:
+            username = f"user_{random.randint(100000, 999999)}"
+            if not Agents.objects.filter(username=username).exists():
+                return username
 
     def __str__(self):
         return f"{self.username} ({self.agentCode})"
