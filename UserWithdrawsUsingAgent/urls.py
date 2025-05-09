@@ -1,23 +1,7 @@
 from django.urls import path
-from .views import (
-    UserWithdrawToAgentAPIView,
-    AgentTransactionHistoryAPIView,
-    RevenueReportAPIView,
-)
+from .views import UserWithdrawToAgentAPIView, AgentWithdrawalHistoryAPIView
 
 urlpatterns = [
-    # User withdrawal endpoint
-    path(
-        "withdraw-to-agent/",
-        UserWithdrawToAgentAPIView.as_view(),
-        name="user-withdraw-to-agent",
-    ),
-    # Agent transaction history
-    path(
-        "Widraw-to-agent-history/",
-        AgentTransactionHistoryAPIView.as_view(),
-        name="agent-transactions",
-    ),
-    # Revenue reporting
-    path("revenue/", RevenueReportAPIView.as_view(), name="revenue-report"),
+    path('', UserWithdrawToAgentAPIView.as_view(), name='withdrawal'),
+    path('Wdr-to-agent-hstr/', AgentWithdrawalHistoryAPIView.as_view(), name='withdrawal-history'),
 ]

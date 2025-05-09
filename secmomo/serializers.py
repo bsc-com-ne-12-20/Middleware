@@ -9,11 +9,11 @@ class AgentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agents
         fields = ['username', 'email', 'password', 'first_name', 'last_name', 
-                 'mobile_money_user_id', 'status', 'agent_code', 'phone_number']
+                 'mobile_money_user_id', 'status', 'agentCode', 'phone_number']
         extra_kwargs = {
             'password': {'write_only': True},
             'status': {'read_only': True},
-            'agent_code': {'read_only': True}
+            'agentCode': {'read_only': True}
         }
 
     def create(self, validated_data):
@@ -31,26 +31,24 @@ class AgentSerializer(serializers.ModelSerializer):
         return user
 
 class AgentLoginSerializer(serializers.Serializer):
-    username = serializers.CharField()
+    email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
-    agent_code = serializers.CharField(required=False)
+    agentCode = serializers.CharField(required=False)
 
     def validate(self, data):
-        username = data.get('username')
+        email = data.get('email')
         password = data.get('password')
-        agent_code = data.get('agent_code', None)
+        agentCode = data.get('agentCode', None)
 
-        if not username or not password:
-            raise serializers.ValidationError("Both username and password are required")
+        if not email or not password:
+            raise serializers.ValidationError("Both email and password are required")
 
-        if '@' in username:
-            try:
-                user = Agents.objects.get(email=username)
-                username = user.username
-            except Agents.DoesNotExist:
-                raise serializers.ValidationError("Invalid credentials")
+        try:
+            user = Agents.objects.get(email=email)
+        except Agents.DoesNotExist:
+            raise serializers.ValidationError("Invalid credentials")
 
-        user = authenticate(username=username, password=password)
+        user = authenticate(username=user.username, password=password)
 
         if not user:
             raise serializers.ValidationError("Invalid credentials")
@@ -58,14 +56,13 @@ class AgentLoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Account is disabled")
         if user.status != 'active':
             raise serializers.ValidationError("Agent account is not active")
-        if agent_code and user.agent_code != agent_code:
+        if agentCode and user.agentCode != agentCode:
             raise serializers.ValidationError("Invalid agent code")
 
         return {
             'user': user,
-            'username': user.username,
             'email': user.email,
-            'agent_code': user.agent_code
+            'agentCode': user.agentCode
         }
 
 class ChangePasswordSerializer(serializers.Serializer):
@@ -79,8 +76,8 @@ class AgentProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agents
         fields = ['username', 'email', 'first_name', 'last_name', 
-                 'agent_code', 'status', 'current_balance', 'phone_number']
-        read_only_fields = ['username', 'email', 'agent_code', 
+                 'agentCode', 'status', 'current_balance', 'phone_number']
+        read_only_fields = ['username', 'email', 'agentCode', 
                           'status', 'current_balance']
 
 class AgentApplicationSerializer(serializers.ModelSerializer):
@@ -109,8 +106,9 @@ class AgentApplicationListSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['user', 'status', 'application_date', 
                           'reviewed_by', 'reviewed_at']
+
 class SimpleAgentApplicationSerializer(serializers.ModelSerializer):
-    balance = serializers.FloatField(write_only=True, required=False)  # Add this field
+    balance = serializers.FloatField(write_only=True, required=False)
     
     class Meta:
         model = AgentApplication
@@ -122,3 +120,33 @@ class SimpleAgentApplicationSerializer(serializers.ModelSerializer):
             'applicant_type': {'required': True},
             'business_name': {'required': False}
         }
+
+class EmailToUsernameSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        try:
+            agent = Agents.objects.get(email=value)
+        except Agents.DoesNotExist:
+            raise serializers.ValidationError("Agent with this email does not exist.")
+        return value
+
+    def get_username(self):
+        email = self.validated_data['email']
+        agent = Agents.objects.get(email=email)
+        return agent.username
+
+class EmailToBalanceSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        try:
+            agent = Agents.objects.get(email=value)
+        except Agents.DoesNotExist:
+            raise serializers.ValidationError("Agent with this email does not exist.")
+        return value
+
+    def get_balance(self):
+        email = self.validated_data['email']
+        agent = Agents.objects.get(email=email)
+        return agent.current_balance

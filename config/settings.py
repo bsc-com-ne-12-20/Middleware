@@ -49,6 +49,13 @@ INSTALLED_APPS = [
     "UserWithdrawsUsingAgent",
 ]
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'my_cache_table',
+    }
+}
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -189,7 +196,7 @@ API_REQUEST_TIMEOUT = 30  # seconds
 ADMIN_EMAIL = "secmomo.africa@gmail.com"
 AGENT_PORTAL_URL = "https://pamomo-agent.netlify.app/login"
 # settings.py (Agent API)
-USER_WALLET_WITHDRAW_URL = "https://mtima.onrender.com/api/v1/wtdr/"  # Change to your actual user API withdraw endpoint
+USER_WALLET_WITHDRAW_URL = "https://mtima.onrender.com/api/v1/wtdr/"  
 
 
 # Logging Configuration

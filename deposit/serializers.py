@@ -1,3 +1,5 @@
+
+# transactions/serializers.py
 from rest_framework import serializers
 from decimal import Decimal
 import uuid
@@ -8,83 +10,93 @@ from .models import AgentDepositHistory
 class AgentDepositSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(write_only=True)
     amount = serializers.DecimalField(max_digits=10, decimal_places=2)
-    agent_code = serializers.CharField(write_only=True)
+    agentCode = serializers.CharField(write_only=True)
     transaction_id = serializers.CharField(read_only=True)
 
     class Meta:
         model = AgentDepositHistory
-        fields = ['agent_code', 'email', 'amount', 'transaction_id', 'timestamp']
+        fields = ['agentCode', 'email', 'amount', 'transaction_id', 'timestamp']
 
     def validate(self, data):
-        #for authorized
-        #agent = self.context['request'].user(remove agent code)
-        agent_code = data.get("agent_code")
+        agentCode = data.get("agentCode")
         amount = data.get("amount")
 
-        # Fetch agent using the provided agent code
         try:
-            agent = Agents.objects.get(agent_code=agent_code)#this line will be removed for authenticated user
+            agent = Agents.objects.get(agentCode=agentCode)
         except Agents.DoesNotExist:
             raise serializers.ValidationError("Agent with this code does not exist.")
 
-        # Check if the agent has sufficient balance
         if agent.current_balance < amount:
             raise serializers.ValidationError("Insufficient balance.")
 
-        # Attach the agent instance to validated data for use in create
         data["agent"] = agent
         return data
 
     def create(self, validated_data):
-        agent = validated_data.pop("agent")  # Get the agent instance
-        user_email = validated_data["email"]  # Get the user email
+        agent = validated_data.pop("agent")
+        receiver_email = validated_data["email"]
         amount = validated_data["amount"]
-        transaction_id = uuid.uuid4().hex[:12].upper()  # Generate a unique transaction ID
+        transaction_id = uuid.uuid4().hex[:12].upper()
+        commission = amount * Decimal('0.02')  # 2% commission
 
-        # Prepare the payload for the external deposit API
+        deposit = AgentDepositHistory.objects.create(
+            agent=agent,
+            sender_email=agent.email,
+            receiver_email=receiver_email,
+            amount=amount,
+            transaction_id=transaction_id,
+            commission_earned=commission,
+            status='pending'
+        )
+
         external_payload = {
-            "email": user_email,
+            "email": receiver_email,
             "amount": str(amount),
             "transaction_id": transaction_id
         }
 
-        # Call external API to process the deposit
-        response = requests.post(
-            "https://mtima.onrender.com/api/v1/dpst/",  # Adjust this URL as needed
-            json=external_payload
-        )
-
-        if response.status_code == 201:  # If the external API responds with HTTP 201 (Created)
-            # Update the agent's balance
-            agent.current_balance -= amount
-            agent.save()
-
-            # Record the deposit in the local history
-            deposit = AgentDepositHistory.objects.create(
-                agent=agent,
-                user_email=user_email,
-                amount=amount,
-                transaction_id=transaction_id
+        try:
+            response = requests.post(
+                "https://mtima.onrender.com/api/v1/dpst/",
+                json=external_payload
             )
 
-            # Prepare and return the custom response format
-            return {
-                "agent_code": agent.agent_code,
-                "receiver_email": user_email,
-                "status": "success",
-                "amount": str(amount),
-                "transaction_id": transaction_id,
-                "timestamp": deposit.timestamp
-            }
-        else:
-            # Handle errors from the external API
-            error_details = response.json() if response.headers.get("Content-Type") == "application/json" else response.text
-            raise serializers.ValidationError({
-                "external_api_error": error_details
-            })
+            if response.status_code == 201:
+                agent.current_balance -= amount
+                agent.current_balance += commission
+                agent.save()
+                deposit.status = 'completed'
+            else:
+                deposit.status = 'failed'
+                
+            deposit.save()
 
+        except requests.exceptions.RequestException:
+            deposit.status = 'failed'
+            deposit.save()
+
+        return {
+            "id": transaction_id,
+            "type": "deposit",
+            "sender": agent.agentCode,
+            "receiver": receiver_email,
+            "amount": str(amount),
+            "commission_earned": str(deposit.commission_earned),
+            "time_stamp": deposit.timestamp.isoformat(),
+            "status": deposit.status
+        }
 
 class AgentDepositHistorySerializer(serializers.ModelSerializer):
+    id = serializers.CharField(source='transaction_id')
+    type = serializers.SerializerMethodField()
+    sender = serializers.CharField(source='agent.agentCode')
+    receiver = serializers.CharField(source='receiver_email')
+    commission_earned = serializers.DecimalField(max_digits=10, decimal_places=2)
+    time_stamp = serializers.DateTimeField(source='timestamp')
+
     class Meta:
         model = AgentDepositHistory
-        fields = ['transaction_id', 'user_email', 'amount', 'timestamp']
+        fields = ['id', 'type', 'sender', 'receiver', 'amount', 'commission_earned', 'time_stamp', 'status']
+
+    def get_type(self, obj):
+        return "deposit"

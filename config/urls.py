@@ -26,8 +26,8 @@ urlpatterns = [
         "api/password_reset/",
         include("django_rest_passwordreset.urls", namespace="password_reset"),
     ),
-    path("api/v1/", include("deposit.urls")),
-    path("api/v1/trsf/", include("agentTransfers.urls")),
+    path("api/v1/dpst/", include("deposit.urls")),
+    path("api/v1/agent-trsf/", include("agentTransfers.urls")),
     path("api/v1/agent-usr/", include("agents.urls")),
-    path("api/v1/wdr/", include("UserWithdrawsUsingAgent.urls")),
+    path("api/v1/wtdr/", include("UserWithdrawsUsingAgent.urls")),
 ]

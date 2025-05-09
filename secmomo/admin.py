@@ -12,22 +12,22 @@ class AgentApplicationAdmin(admin.ModelAdmin):
 @admin.register(Agents)
 class AgentAdmin(UserAdmin):
     # Display fields in list view
-    list_display = ('username', 'email', 'phone_number', 'agent_code', 'status', 'date_joined')
+    list_display = ('username', 'email', 'phone_number', 'agentCode', 'status', 'date_joined')
     
     # Filter options
     list_filter = ('status', 'is_active', 'is_staff')
     
     # Searchable fields
-    search_fields = ('username', 'email', 'phone_number', 'agent_code', 'first_name', 'last_name')
+    search_fields = ('username', 'email', 'phone_number', 'agentCode', 'first_name', 'last_name')
     
     # Readonly fields
-    readonly_fields = ('date_joined', 'last_login', 'agent_code')
+    readonly_fields = ('date_joined', 'last_login', 'agentCode')
     
     # Fieldsets for edit view
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
         ('Personal Info', {'fields': ('first_name', 'last_name', 'email', 'phone_number')}),
-        ('Agent Info', {'fields': ('agent_code', 'current_balance', 'status', 'mobile_money_user_id')}),
+        ('Agent Info', {'fields': ('agentCode', 'current_balance', 'status', 'mobile_money_user_id')}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ('Important Dates', {'fields': ('last_login', 'date_joined')}),
     )
