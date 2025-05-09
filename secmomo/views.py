@@ -28,7 +28,7 @@ from .serializers import (
 )
 
 logger = logging.getLogger(__name__)
-MINIMUM_BALANCE = 100000  # 200,000 MWK
+MINIMUM_BALANCE = 200000  # 200,000 MWK
 
 # Helper function for balance retrieval
 def get_user_balance(email, auth_token):
@@ -50,6 +50,11 @@ def get_user_balance(email, auth_token):
 @api_view(['POST'])
 def register_agent(request):
     """Register a new agent account (pending approval)"""
+    # Check if the email already exists
+    email = request.data.get('email')
+    if Agents.objects.filter(email=email).exists():
+        return Response({'error': 'This email is already registered.'}, status=status.HTTP_400_BAD_REQUEST)
+    
     serializer = AgentSerializer(data=request.data)
     if serializer.is_valid():
         agent = serializer.save()
@@ -68,7 +73,9 @@ def register_agent(request):
             'message': 'Registration successful. Pending approval.',
             'data': serializer.data
         }, status=status.HTTP_201_CREATED)
+    
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 # Agent Login
 @api_view(['POST'])
@@ -101,30 +108,28 @@ def agent_login(request):
 
 # Get Username by Email
 class EmailToUsernameView(APIView):
-    #@permission_classes([IsAuthenticated])
     def post(self, request, *args, **kwargs):
         serializer = EmailToUsernameSerializer(data=request.data)
         if serializer.is_valid():
             email = serializer.validated_data['email']
             try:
-                username = serializer.get_username()
-                return Response({'username': username}, status=status.HTTP_200_OK)
-            except Exception as e:
-                return Response({'error': f'Failed to retrieve username: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                agent = Agents.objects.get(email=email)
+                return Response({'username': agent.username}, status=status.HTTP_200_OK)
+            except Agents.DoesNotExist:
+                return Response({'error': 'Agent not found'}, status=status.HTTP_404_NOT_FOUND)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # Get Balance by Email
 class EmailToBalanceView(APIView):
-    #@permission_classes([IsAuthenticated])
     def post(self, request, *args, **kwargs):
         serializer = EmailToBalanceSerializer(data=request.data)
         if serializer.is_valid():
             email = serializer.validated_data['email']
             try:
-                balance = serializer.get_balance()
-                return Response({'balance': balance}, status=status.HTTP_200_OK)
-            except Exception as e:
-                return Response({'error': f'Failed to retrieve balance: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                agent = Agents.objects.get(email=email)
+                return Response({'balance': agent.current_balance}, status=status.HTTP_200_OK)
+            except Agents.DoesNotExist:
+                return Response({'error': 'Agent not found'}, status=status.HTTP_404_NOT_FOUND)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # Auto-Approval Endpoint
@@ -311,19 +316,6 @@ def get_agent_username(request):
     agent = get_object_or_404(Agents, agentCode=agentCode)
     return Response({'username': agent.username}, status=status.HTTP_200_OK)
 
-#handling get balance on frontend of an logged in agent
-#@api_view(['POST'])
-#@permission_classes([IsAuthenticated])
-#def get_balance(request):
-  #  """
-  #  Return the current balance of the authenticated agent.
-  #  """
-  #  agent = request.user
-   # return Response({
-  #      'agent_code': agent.agent_code,
-  #      'balance': agent.current_balance
- #   })
-
 #handle get balance
 @api_view(['POST'])
 #@permission_classes([IsAuthenticated])
@@ -343,4 +335,3 @@ def get_balance(request):
         }, status=200)
     except Agents.DoesNotExist:
         return Response({'error': 'Agent not found'}, status=404)
-
