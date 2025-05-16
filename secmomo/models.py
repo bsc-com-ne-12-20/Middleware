@@ -32,7 +32,7 @@ class Agents(AbstractUser):
     status = models.CharField(max_length=10, choices=AGENT_STATUS, default='active')  # Changed from 'pending' to 'active'
     mobile_money_user_id = models.PositiveIntegerField(null=True, blank=True)
     current_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
-    phone_number = models.CharField(max_length=15, blank=True, null=True)
+    phone_number = models.CharField(max_length=15, blank=True, null=False)
     
     MAX_BALANCE = 1_000_000.00  # Define the max balance
 
@@ -53,24 +53,12 @@ class Agents(AbstractUser):
 
         super().save(*args, **kwargs)
     
-    def _generate_agentCode(self):
-        """Generate unique 6-digit numerical code"""
-        while True:
-            code = str(random.randint(100000, 999999))  # 6-digit number
-            if not Agents.objects.filter(agentCode=code).exists():
-                return code
-
-    def _generate_unique_username(self):
-        """Generate unique username"""
-        while True:
-            username = f"user_{random.randint(100000, 999999)}"
-            if not Agents.objects.filter(username=username).exists():
-                return username
-
-    def __str__(self):
-        return f"{self.username} ({self.agentCode})"
-
-
+    #def _generate_agentCode(self):
+    #    """Generate unique 6-digit numerical code"""
+    #    while True:
+    #        code = str(random.randint(123000, 123999))  # 6-digit number
+    #        if not Agents.objects.filter(agentCode=code).exists():
+    #            return code
 class AgentApplication(models.Model):
     APPLICANT_TYPES = (
         ('individual', 'Individual'),
