@@ -28,11 +28,7 @@ from .serializers import (
 )
 
 logger = logging.getLogger(__name__)
-<<<<<<< HEAD
-MINIMUM_BALANCE = 4000  # 200,000 MWK
-=======
 MINIMUM_BALANCE = 200000  # 200,000 MWK
->>>>>>> 87e21dc1c2f260122e88e46044b00fb525c66ee8
 
 # Helper function for balance retrieval
 def get_user_balance(email, auth_token):

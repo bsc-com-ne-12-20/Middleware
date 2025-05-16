@@ -53,33 +53,12 @@ class Agents(AbstractUser):
 
         super().save(*args, **kwargs)
     
-<<<<<<< HEAD
     #def _generate_agentCode(self):
     #    """Generate unique 6-digit numerical code"""
     #    while True:
     #        code = str(random.randint(123000, 123999))  # 6-digit number
     #        if not Agents.objects.filter(agentCode=code).exists():
     #            return code
-=======
-    def _generate_agentCode(self):
-        """Generate unique 6-digit numerical code"""
-        while True:
-            code = str(random.randint(100000, 999999))  # 6-digit number
-            if not Agents.objects.filter(agentCode=code).exists():
-                return code
-
-    def _generate_unique_username(self):
-        """Generate unique username"""
-        while True:
-            username = f"user_{random.randint(100000, 999999)}"
-            if not Agents.objects.filter(username=username).exists():
-                return username
-
-    def __str__(self):
-        return f"{self.username} ({self.agentCode})"
-
-
->>>>>>> 87e21dc1c2f260122e88e46044b00fb525c66ee8
 class AgentApplication(models.Model):
     APPLICANT_TYPES = (
         ('individual', 'Individual'),
