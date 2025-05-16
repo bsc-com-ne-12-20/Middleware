@@ -28,14 +28,14 @@ from .serializers import (
 )
 
 logger = logging.getLogger(__name__)
-MINIMUM_BALANCE = 100000  # 200,000 MWK
+MINIMUM_BALANCE = 4000  # 200,000 MWK
 
 # Helper function for balance retrieval
 def get_user_balance(email, auth_token):
     """Retrieve user balance from main backend"""
     try:
         response = requests.post(
-            'http://127.0.0.1:8000/api/get-balance/',
+            'https://mtima.onrender.com/api/get-balance/',
             json={'email': email},
             headers={'Authorization': f'Bearer {auth_token}'},
             timeout=15  # Increased from 5 to 15 seconds
@@ -160,7 +160,7 @@ def auto_approve_agent(request):
             )
 
         temp_password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
-        agentCode = ''.join(random.choices(string.digits, k=6))
+        agentCode = '42' + ''.join(random.choices(string.digits, k=4))
 
         with transaction.atomic():
             agent = Agents.objects.create_user(
@@ -236,18 +236,17 @@ def agent_profile(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def change_password(request):
-    """Change agent password"""
-    serializer = ChangePasswordSerializer(data=request.data)
-    if serializer.is_valid():
-        user = request.user
-        if user.check_password(serializer.data.get('old_password')):
-            user.set_password(serializer.data.get('new_password'))
-            user.save()
-            update_session_auth_hash(request, user)
-            return Response({'message': 'Password updated'})
-        return Response({'error': 'Incorrect password'}, status=status.HTTP_400_BAD_REQUEST)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+    if request.method == 'POST':
+        serializer = ChangePasswordSerializer(data=request.data)
+        if serializer.is_valid():
+            user = request.user
+            if user.check_password(serializer.data.get('old_password')):
+                user.set_password(serializer.data.get('new_password'))
+                user.save()
+                update_session_auth_hash(request, user)  # To update session after password change
+                return Response({'message': 'Password changed successfully.'}, status=status.HTTP_200_OK)
+            return Response({'error': 'Incorrect old password.'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 # Admin Approval Endpoint
 @api_view(['POST'])
 @permission_classes([IsAdminUser])

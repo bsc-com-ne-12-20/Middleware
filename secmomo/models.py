@@ -33,7 +33,7 @@ class Agents(AbstractUser):
     status = models.CharField(max_length=10, choices=AGENT_STATUS, default='active')  # Changed from 'pending' to 'active'
     mobile_money_user_id = models.PositiveIntegerField(null=True, blank=True)
     current_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
-    phone_number = models.CharField(max_length=15, blank=True)
+    phone_number = models.CharField(max_length=15, blank=True, null=False)
     
 
 
@@ -42,12 +42,12 @@ class Agents(AbstractUser):
             self.agentCode = self._generate_agentCode()
         super().save(*args, **kwargs)
     
-    def _generate_agentCode(self):
-        """Generate unique 6-digit numerical code"""
-        while True:
-            code = str(random.randint(100000, 999999))  # 6-digit number
-            if not Agents.objects.filter(agentCode=code).exists():
-                return code
+    #def _generate_agentCode(self):
+    #    """Generate unique 6-digit numerical code"""
+    #    while True:
+    #        code = str(random.randint(123000, 123999))  # 6-digit number
+    #        if not Agents.objects.filter(agentCode=code).exists():
+    #            return code
 class AgentApplication(models.Model):
     APPLICANT_TYPES = (
         ('individual', 'Individual'),
