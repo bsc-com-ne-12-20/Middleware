@@ -1,3 +1,4 @@
+from django.forms import ValidationError
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -7,81 +8,133 @@ from decimal import Decimal
 import requests
 from secmomo.models import Agents
 from .models import AgentWithdrawalHistory, Revenue
-from .serializers import UserWithdrawalToAgentSerializer, TransactionResponseSerializer, AgentWithdrawalHistorySerializer
+from .serializers import (
+    UserWithdrawalToAgentSerializer,
+    TransactionResponseSerializer,
+    AgentWithdrawalHistorySerializer,
+)
 from django.utils import timezone
 from datetime import timedelta
 from django.db.models import Sum, Count
 from django.core.cache import cache
 from django.db import DatabaseError
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class UserWithdrawToAgentAPIView(APIView):
-    # permission_classes = [IsAuthenticated]
-
     @transaction.atomic
     def post(self, request, *args, **kwargs):
         serializer = UserWithdrawalToAgentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         data = serializer.validated_data
+
         sender_email = data["sender_email"]
         amount = data["amount"]
-        agentCode = data["agentCode"]
+        agent_code = data["agentCode"]
 
-        commission_earned = amount * Decimal("0.03")
-        net_amount = amount  # Agent receives full amount
+        commission_rate = Decimal("0.03")
+        commission_earned = amount * commission_rate
+        net_amount = amount - commission_earned
 
         try:
-            agent = Agents.objects.select_for_update().get(agentCode=agentCode)
+            agent = Agents.objects.select_for_update().get(agentCode=agent_code)
         except Agents.DoesNotExist:
-            return Response({"detail": "Agent not found"}, status=status.HTTP_404_NOT_FOUND)
+            logger.error(f"Agent not found: {agent_code}")
+            return Response(
+                {"detail": "Agent not found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
-        transaction = AgentWithdrawalHistory(
+        withdrawal = AgentWithdrawalHistory(
             agent=agent,
             sender_email=sender_email,
             receiver_email=agent.email,
-            receiver=agent.agentCode,
             gross_amount=amount,
             commission_earned=commission_earned,
             net_amount=net_amount,
-            status='pending'
+            status="pending",
         )
-        transaction.save()
+        withdrawal.save()
 
         try:
+            # Call external wallet service
             response = requests.post(
-                settings.USER_WALLET_WITHDRAW_URL,  # Use configurable setting
-                json={"email": sender_email, "amount": str(amount)},
-                timeout=5,
+                settings.USER_WALLET_WITHDRAW_URL,
+                json={
+                    "email": sender_email,
+                    "amount": str(amount),
+                    "reference": withdrawal.transaction_id,
+                },
+                timeout=10,
             )
             response_data = response.json()
+            logger.info(f"Wallet service response: {response_data}")
 
-            if response.status_code == 200 and response_data.get("success", True):
-                transaction.status = 'completed'
-                transaction.process_transaction()
+            # Modified success condition check
+            if (
+                response.status_code == 200
+                and ("success" in response_data and response_data["success"])
+                or ("trans_id" in response_data)
+            ):  # Also consider it successful if it has transaction ID
+
+                try:
+                    agent.add_to_balance(net_amount)
+                    withdrawal.status = "completed"
+                    withdrawal.process_transaction()
+                except ValidationError as e:
+                    withdrawal.status = "failed"
+                    logger.error(f"Balance limit exceeded for agent {agent.agentCode}: {str(e)}")
+                    return Response(
+                        {"detail": str(e)},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                logger.info(
+                    f"Success: Withdrawal {withdrawal.transaction_id} processed. "
+                    f"Amount: {amount}, Agent: {agent_code}"
+                )
             else:
-                transaction.status = 'failed'
-                
-            transaction.save()
+                withdrawal.status = "failed"
+                logger.error(
+                    f"Failed: Withdrawal {withdrawal.transaction_id}. "
+                    f"Response: {response_data}"
+                )
+                return Response(
+                    {
+                        "detail": "Withdrawal failed",
+                        "error": response_data.get("error", "Unknown error"),
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-        except requests.exceptions.RequestException:
-            transaction.status = 'failed'
-            transaction.save()
+        except requests.exceptions.RequestException as e:
+            withdrawal.status = "failed"
+            logger.error(
+                f"Request failed for withdrawal {withdrawal.transaction_id}. Error: {str(e)}"
+            )
+            return Response(
+                {"detail": "Failed to connect to wallet service"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        finally:
+            withdrawal.save()
 
-        return Response(
-            TransactionResponseSerializer(
-                {
-                    "id": transaction.transaction_id,
-                    "type": "withdrawal",
-                    "sender": sender_email,
-                    "receiver": agent.agentCode,
-                    "amount": transaction.gross_amount,
-                    "commission_earned": transaction.commission_earned,
-                    "time_stamp": transaction.timestamp,
-                    "status": transaction.status
-                }
-            ).data,
-            status=status.HTTP_200_OK if transaction.status == 'completed' else status.HTTP_400_BAD_REQUEST
+        response_serializer = TransactionResponseSerializer(
+            {
+                "id": withdrawal.transaction_id,
+                "type": "withdrawal",
+                "sender": sender_email,
+                "receiver": agent.agentCode,
+                "amount": withdrawal.gross_amount,
+                "commission_earned": withdrawal.commission_earned,
+                "time_stamp": withdrawal.timestamp,
+                "status": withdrawal.status,
+            }
         )
+
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
+
 
 class AgentWithdrawalHistoryAPIView(APIView):
     # permission_classes = [IsAuthenticated]
@@ -90,11 +143,16 @@ class AgentWithdrawalHistoryAPIView(APIView):
         agentCode = request.query_params.get("agentCode")
         timeRange = request.query_params.get("timeRange", "day")
         if not agentCode:
-            return Response({"detail": "agentCode parameter required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "agentCode parameter required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             agent = Agents.objects.get(agentCode=agentCode)
-            queryset = AgentWithdrawalHistory.objects.filter(agent=agent, status='completed')
+            queryset = AgentWithdrawalHistory.objects.filter(
+                agent=agent, status="completed"
+            )
 
             now = timezone.now()
             if timeRange == "day":
@@ -107,9 +165,13 @@ class AgentWithdrawalHistoryAPIView(APIView):
                 start = now - timedelta(days=30)
                 end = now
             else:
-                return Response({"error": "Invalid timeRange"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"error": "Invalid timeRange"}, status=status.HTTP_400_BAD_REQUEST
+                )
 
-            queryset = queryset.filter(timestamp__gte=start, timestamp__lte=end).order_by('-timestamp')
+            queryset = queryset.filter(
+                timestamp__gte=start, timestamp__lte=end
+            ).order_by("-timestamp")
 
             # Cache key for growth data
             cache_key = f"growth_withdrawal_{agentCode}_{timeRange}"
@@ -127,7 +189,9 @@ class AgentWithdrawalHistoryAPIView(APIView):
                 current_end = end
                 if timeRange == "day":
                     previous_start = start - timedelta(days=1)
-                    previous_end = previous_start + timedelta(days=1) - timedelta(seconds=1)
+                    previous_end = (
+                        previous_start + timedelta(days=1) - timedelta(seconds=1)
+                    )
                 elif timeRange == "week":
                     previous_start = now - timedelta(days=14)
                     previous_end = now - timedelta(days=7)
@@ -139,24 +203,24 @@ class AgentWithdrawalHistoryAPIView(APIView):
                     agent=agent,
                     timestamp__gte=current_start,
                     timestamp__lte=current_end,
-                    status='completed'
+                    status="completed",
                 )
                 previous_transactions = AgentWithdrawalHistory.objects.filter(
                     agent=agent,
                     timestamp__gte=previous_start,
                     timestamp__lte=previous_end,
-                    status='completed'
+                    status="completed",
                 )
 
                 current_metrics = current_transactions.aggregate(
-                    total_transactions=Count('id'),
-                    total_commission=Sum('commission_earned'),
-                    total_volume=Sum('gross_amount')
+                    total_transactions=Count("id"),
+                    total_commission=Sum("commission_earned"),
+                    total_volume=Sum("gross_amount"),
                 )
                 previous_metrics = previous_transactions.aggregate(
-                    total_transactions=Count('id'),
-                    total_commission=Sum('commission_earned'),
-                    total_volume=Sum('gross_amount')
+                    total_transactions=Count("id"),
+                    total_commission=Sum("commission_earned"),
+                    total_volume=Sum("gross_amount"),
                 )
 
                 def calculate_growth(current, previous):
@@ -165,21 +229,23 @@ class AgentWithdrawalHistoryAPIView(APIView):
                     if previous == 0:
                         return "↑ 100%" if current > 0 else "0%"
                     growth_value = ((current - previous) / previous) * 100
-                    return f"{'↑' if growth_value >= 0 else '↓'} {abs(growth_value):.1f}%"
+                    return (
+                        f"{'↑' if growth_value >= 0 else '↓'} {abs(growth_value):.1f}%"
+                    )
 
                 growth = {
                     "transactions": calculate_growth(
-                        current_metrics['total_transactions'],
-                        previous_metrics['total_transactions']
+                        current_metrics["total_transactions"],
+                        previous_metrics["total_transactions"],
                     ),
                     "commission": calculate_growth(
-                        current_metrics['total_commission'],
-                        previous_metrics['total_commission']
+                        current_metrics["total_commission"],
+                        previous_metrics["total_commission"],
                     ),
                     "volume": calculate_growth(
-                        current_metrics['total_volume'],
-                        previous_metrics['total_volume']
-                    )
+                        current_metrics["total_volume"],
+                        previous_metrics["total_volume"],
+                    ),
                 }
                 try:
                     cache.set(cache_key, growth, timeout=300)
@@ -188,9 +254,11 @@ class AgentWithdrawalHistoryAPIView(APIView):
                     # Continue without caching
 
             serializer = AgentWithdrawalHistorySerializer(queryset, many=True)
-            return Response({
-                "transactions": serializer.data,
-                "growth": growth
-            }, status=status.HTTP_200_OK)
+            return Response(
+                {"transactions": serializer.data, "growth": growth},
+                status=status.HTTP_200_OK,
+            )
         except Agents.DoesNotExist:
-            return Response({"detail": "Agent not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Agent not found"}, status=status.HTTP_404_NOT_FOUND
+            )

@@ -1,9 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
-from django.core.mail import send_mail
-from django.conf import settings
 import random
 import string
+from django.core.exceptions import ValidationError
 
 """
 class Agents(AbstractUser):
@@ -21,7 +20,7 @@ class Agents(AbstractUser):
     
 """
 
-
+# ✅ Final Agents model version (used as AUTH_USER_MODEL)
 class Agents(AbstractUser):
     AGENT_STATUS = (
         ('pending', 'Pending Approval'),
@@ -35,19 +34,52 @@ class Agents(AbstractUser):
     current_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     phone_number = models.CharField(max_length=15, blank=True, null=False)
     
+    MAX_BALANCE = 1_000_000.00  # Define the max balance
 
+    def add_to_balance(self, amount):
+        """Safely add amount to balance with validation."""
+        if self.current_balance + amount > self.MAX_BALANCE:
+            raise ValidationError("Agent balance cannot exceed 1,000,000.00.")
+        self.current_balance += amount
+        self.save()
 
     def save(self, *args, **kwargs):
         if not self.agentCode:
             self.agentCode = self._generate_agentCode()
+
+        # Ensure unique username, if it's not provided, auto-generate one
+        if not self.username:
+            self.username = self._generate_unique_username()
+
         super().save(*args, **kwargs)
     
+<<<<<<< HEAD
     #def _generate_agentCode(self):
     #    """Generate unique 6-digit numerical code"""
     #    while True:
     #        code = str(random.randint(123000, 123999))  # 6-digit number
     #        if not Agents.objects.filter(agentCode=code).exists():
     #            return code
+=======
+    def _generate_agentCode(self):
+        """Generate unique 6-digit numerical code"""
+        while True:
+            code = str(random.randint(100000, 999999))  # 6-digit number
+            if not Agents.objects.filter(agentCode=code).exists():
+                return code
+
+    def _generate_unique_username(self):
+        """Generate unique username"""
+        while True:
+            username = f"user_{random.randint(100000, 999999)}"
+            if not Agents.objects.filter(username=username).exists():
+                return username
+
+    def __str__(self):
+        return f"{self.username} ({self.agentCode})"
+
+
+>>>>>>> 87e21dc1c2f260122e88e46044b00fb525c66ee8
 class AgentApplication(models.Model):
     APPLICANT_TYPES = (
         ('individual', 'Individual'),
