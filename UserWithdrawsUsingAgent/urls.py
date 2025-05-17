@@ -3,5 +3,5 @@ from .views import UserWithdrawToAgentAPIView, AgentWithdrawalHistoryAPIView
 
 urlpatterns = [
     path('', UserWithdrawToAgentAPIView.as_view(), name='withdrawal'),
-    path('Wdr-to-agent-hstr/', AgentWithdrawalHistoryAPIView.as_view(), name='withdrawal-history'),
+    path('wdr-to-agent-hstr/', AgentWithdrawalHistoryAPIView.as_view(), name='withdrawal-history'),
 ]

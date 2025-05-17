@@ -164,7 +164,7 @@ def auto_approve_agent(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        temp_password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+        temp_password = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
         agentCode = '42' + ''.join(random.choices(string.digits, k=4))
 
         with transaction.atomic():

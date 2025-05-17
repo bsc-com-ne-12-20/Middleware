@@ -146,3 +146,5 @@ cython_debug/db.sqlite3
 __pycache__/
 db.sqlite3
 __pycache__/
+.vs/
+.vs
