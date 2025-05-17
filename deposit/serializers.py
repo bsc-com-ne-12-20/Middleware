@@ -13,6 +13,9 @@ class AgentDepositSerializer(serializers.ModelSerializer):
     agentCode = serializers.CharField(write_only=True)
     transaction_id = serializers.CharField(read_only=True)
 
+    # Set a maximum deposit limit
+    MAX_DEPOSIT_LIMIT = Decimal('10000.00')  # Set the limit as per your requirements
+
     class Meta:
         model = AgentDepositHistory
         fields = ['agentCode', 'email', 'amount', 'transaction_id', 'timestamp']
@@ -26,8 +29,13 @@ class AgentDepositSerializer(serializers.ModelSerializer):
         except Agents.DoesNotExist:
             raise serializers.ValidationError("Agent with this code does not exist.")
 
+        # Check if deposit exceeds the maximum limit
+        if amount > self.MAX_DEPOSIT_LIMIT:
+            raise serializers.ValidationError(f"Deposit amount exceeds the maximum limit of {self.MAX_DEPOSIT_LIMIT}.")
+
+        # Ensure the agent has enough balance (if it's a withdrawal deposit or transfer)
         if agent.current_balance < amount:
-            raise serializers.ValidationError("Insufficient balance.")
+            raise serializers.ValidationError("Insufficient balance to process this deposit.")
 
         data["agent"] = agent
         return data
@@ -39,6 +47,7 @@ class AgentDepositSerializer(serializers.ModelSerializer):
         transaction_id = uuid.uuid4().hex[:12].upper()
         commission = amount * Decimal('0.02')  # 2% commission
 
+        # Create the deposit history record
         deposit = AgentDepositHistory.objects.create(
             agent=agent,
             sender_email=agent.email,
@@ -49,6 +58,7 @@ class AgentDepositSerializer(serializers.ModelSerializer):
             status='pending'
         )
 
+        # Define the payload to send to the external API
         external_payload = {
             "email": receiver_email,
             "amount": str(amount),
@@ -56,25 +66,28 @@ class AgentDepositSerializer(serializers.ModelSerializer):
         }
 
         try:
+            # Make the API call to the external payment system
             response = requests.post(
                 "https://mtima.onrender.com/api/v1/dpst/",
                 json=external_payload
             )
 
             if response.status_code == 201:
-                agent.current_balance -= amount
-                agent.current_balance += commission
+                # Successful external deposit; update agent's balance
+                agent.current_balance -= amount  # Deduct deposit amount
+                agent.current_balance += commission  # Add commission
                 agent.save()
                 deposit.status = 'completed'
             else:
                 deposit.status = 'failed'
-                
+
             deposit.save()
 
         except requests.exceptions.RequestException:
             deposit.status = 'failed'
             deposit.save()
 
+        # Return transaction details
         return {
             "id": transaction_id,
             "type": "deposit",
@@ -85,6 +98,7 @@ class AgentDepositSerializer(serializers.ModelSerializer):
             "time_stamp": deposit.timestamp.isoformat(),
             "status": deposit.status
         }
+
 
 class AgentDepositHistorySerializer(serializers.ModelSerializer):
     id = serializers.CharField(source='transaction_id')

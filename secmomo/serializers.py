@@ -2,21 +2,49 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from .models import Agents, AgentApplication
 from django.utils import timezone
-import random
-import string
+import re
+
+# ----------------------------
+# Phone Number Helper Methods
+# ----------------------------
+
+def normalize_phone(value):
+    """Normalize phone number (remove spaces and dashes)."""
+    return value.strip().replace(" ", "").replace("-", "")
+
+def validate_phone_number(value):
+    """Ensure phone number format is valid and normalize it."""
+    value = normalize_phone(value)
+    if not re.match(r'^\+?[0-9]{10,15}$', value):
+        raise serializers.ValidationError("Invalid phone number format.")
+    return value
+
+# ----------------------------
+# AgentSerializer (Registration)
+# ----------------------------
 
 class AgentSerializer(serializers.ModelSerializer):
+    phone_number = serializers.CharField(validators=[validate_phone_number])
+
     class Meta:
         model = Agents
         fields = ['username', 'email', 'password', 'first_name', 'last_name', 
-                 'mobile_money_user_id', 'status', 'agentCode', 'phone_number']
+                  'mobile_money_user_id', 'status', 'agentCode', 'phone_number']
         extra_kwargs = {
             'password': {'write_only': True},
             'status': {'read_only': True},
             'agentCode': {'read_only': True}
         }
 
+    def validate_phone_number(self, value):
+        value = validate_phone_number(value)
+        if Agents.objects.filter(phone_number=value).exists():
+            raise serializers.ValidationError("Phone number already in use.")
+        return value
+
     def create(self, validated_data):
+        validated_data['phone_number'] = normalize_phone(validated_data['phone_number'])
+
         user = Agents(
             username=validated_data['username'],
             email=validated_data['email'],
@@ -29,6 +57,10 @@ class AgentSerializer(serializers.ModelSerializer):
         user.set_password(validated_data['password'])
         user.save()
         return user
+
+# ----------------------------
+# Login
+# ----------------------------
 
 class AgentLoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -65,22 +97,37 @@ class AgentLoginSerializer(serializers.Serializer):
             'agentCode': user.agentCode
         }
 
+# ----------------------------
+# Password Management
+# ----------------------------
+
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True)
-
 class ResetPasswordEmailSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
 
+# ----------------------------
+# Agent Profile
+# ----------------------------
+
 class AgentProfileSerializer(serializers.ModelSerializer):
+    phone_number = serializers.CharField(validators=[validate_phone_number])
+
     class Meta:
         model = Agents
         fields = ['username', 'email', 'first_name', 'last_name', 
-                 'agentCode', 'status', 'current_balance', 'phone_number']
+                  'agentCode', 'status', 'current_balance', 'phone_number']
         read_only_fields = ['username', 'email', 'agentCode', 
-                          'status', 'current_balance']
+                            'status', 'current_balance']
+
+# ----------------------------
+# Agent Application
+# ----------------------------
 
 class AgentApplicationSerializer(serializers.ModelSerializer):
+    phone_number = serializers.CharField(validators=[validate_phone_number])
+
     class Meta:
         model = AgentApplication
         fields = [
@@ -105,11 +152,12 @@ class AgentApplicationListSerializer(serializers.ModelSerializer):
         model = AgentApplication
         fields = '__all__'
         read_only_fields = ['user', 'status', 'application_date', 
-                          'reviewed_by', 'reviewed_at']
+                            'reviewed_by', 'reviewed_at']
 
 class SimpleAgentApplicationSerializer(serializers.ModelSerializer):
     balance = serializers.FloatField(write_only=True, required=False)
-    
+    phone_number = serializers.CharField(validators=[validate_phone_number])
+
     class Meta:
         model = AgentApplication
         fields = ['username', 'email', 'phone_number', 'applicant_type', 'business_name', 'balance']
@@ -120,6 +168,10 @@ class SimpleAgentApplicationSerializer(serializers.ModelSerializer):
             'applicant_type': {'required': True},
             'business_name': {'required': False}
         }
+
+# ----------------------------
+# Email Utility Serializers
+# ----------------------------
 
 class EmailToUsernameSerializer(serializers.Serializer):
     email = serializers.EmailField()
