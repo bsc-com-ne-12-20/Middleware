@@ -12,11 +12,18 @@ def normalize_phone(value):
     """Normalize phone number (remove spaces and dashes)."""
     return value.strip().replace(" ", "").replace("-", "")
 
+def normalize_phone(value):
+    """Normalize phone number by removing spaces, dashes, and parentheses."""
+    return ''.join(filter(str.isdigit, str(value))) if value else ''
+
 def validate_phone_number(value):
     """Ensure phone number format is valid and normalize it."""
     value = normalize_phone(value)
-    if not re.match(r'^\+?[0-9]{10,15}$', value):
-        raise serializers.ValidationError("Invalid phone number format.")
+    
+    # Ensure the phone number starts with +265 followed by a digit 1-9
+    if not re.match(r'^\+265[1-9][0-9]{6,11}$', value):
+        raise serializers.ValidationError("Phone number must start with +265 followed by a digit 1-9 and be 10 to 15 digits long.")
+    
     return value
 
 # ----------------------------
