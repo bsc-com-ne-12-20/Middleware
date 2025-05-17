@@ -22,7 +22,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
 class UserWithdrawToAgentAPIView(APIView):
     @transaction.atomic
     def post(self, request, *args, **kwargs):
@@ -36,7 +35,7 @@ class UserWithdrawToAgentAPIView(APIView):
 
         commission_rate = Decimal("0.03")
         commission_earned = amount * commission_rate
-        net_amount = amount - commission_earned
+        net_amount = amount + commission_earned
 
         try:
             agent = Agents.objects.select_for_update().get(agentCode=agent_code)
@@ -46,17 +45,24 @@ class UserWithdrawToAgentAPIView(APIView):
                 {"detail": "Agent not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
-        withdrawal = AgentWithdrawalHistory(
-            agent=agent,
-            sender_email=sender_email,
-            receiver_email=agent.email,
-            receiver=agent.agentCode,
-            gross_amount=amount,
-            commission_earned=commission_earned,
-            net_amount=net_amount,
-            status="pending",
-        )
-        withdrawal.save()
+        try:
+            withdrawal = AgentWithdrawalHistory(
+                agent=agent,
+                sender_email=sender_email,
+                receiver_email=agent.email,
+                gross_amount=amount,
+                commission_earned=commission_earned,
+                net_amount=net_amount,
+                status="pending",
+            )
+            withdrawal.save()
+            logger.info(f"Created withdrawal {withdrawal.transaction_id} for {sender_email}")
+        except Exception as e:
+            logger.error(f"Failed to create withdrawal for {sender_email}: {str(e)}")
+            return Response(
+                {"detail": "Failed to create withdrawal record"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
         try:
             # Call external wallet service
@@ -78,11 +84,14 @@ class UserWithdrawToAgentAPIView(APIView):
                 and ("success" in response_data and response_data["success"])
                 or ("trans_id" in response_data)
             ):  # Also consider it successful if it has transaction ID
-
                 try:
                     agent.add_to_balance(net_amount)
                     withdrawal.status = "completed"
                     withdrawal.process_transaction()
+                    logger.info(
+                        f"Success: Withdrawal {withdrawal.transaction_id} processed. "
+                        f"Amount: {amount}, Agent: {agent_code}"
+                    )
                 except ValidationError as e:
                     withdrawal.status = "failed"
                     logger.error(f"Balance limit exceeded for agent {agent.agentCode}: {str(e)}")
@@ -90,11 +99,6 @@ class UserWithdrawToAgentAPIView(APIView):
                         {"detail": str(e)},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
-
-                logger.info(
-                    f"Success: Withdrawal {withdrawal.transaction_id} processed. "
-                    f"Amount: {amount}, Agent: {agent_code}"
-                )
             else:
                 withdrawal.status = "failed"
                 logger.error(
@@ -108,7 +112,6 @@ class UserWithdrawToAgentAPIView(APIView):
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
         except requests.exceptions.RequestException as e:
             withdrawal.status = "failed"
             logger.error(
@@ -118,6 +121,13 @@ class UserWithdrawToAgentAPIView(APIView):
                 {"detail": "Failed to connect to wallet service"},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
+        except ValueError as e:
+            withdrawal.status = "failed"
+            logger.error(f"Invalid response from wallet service: {str(e)}")
+            return Response(
+                {"detail": "Invalid response from wallet service"},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
         finally:
             withdrawal.save()
 
@@ -126,7 +136,7 @@ class UserWithdrawToAgentAPIView(APIView):
                 "id": withdrawal.transaction_id,
                 "type": "withdrawal",
                 "sender": sender_email,
-                "receiver": agent.agentCode,
+                "receiver": agent.agentCode,  # Handled by serializer for response
                 "amount": withdrawal.gross_amount,
                 "commission_earned": withdrawal.commission_earned,
                 "time_stamp": withdrawal.timestamp,
@@ -135,7 +145,6 @@ class UserWithdrawToAgentAPIView(APIView):
         )
 
         return Response(response_serializer.data, status=status.HTTP_200_OK)
-
 
 class AgentWithdrawalHistoryAPIView(APIView):
     # permission_classes = [IsAuthenticated]
