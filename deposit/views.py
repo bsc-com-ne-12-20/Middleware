@@ -1,3 +1,4 @@
+#deposit/views.py
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -144,7 +145,7 @@ class AgentDepositHistoryAPIView(generics.ListAPIView):
                 )
             }
             try:
-                cache.set(cache_key, growth, timeout=300)  # Cache for 5 minutes
+                cache.set(cache_key, growth, timeout=30)  # Cache for 5 minutes
             except DatabaseError as e:
                 print(f"Cache set error in AgentDepositHistoryAPIView: {e}")
                 # Continue without caching
@@ -311,7 +312,7 @@ class AnalyticsAPIView(APIView):
             }
         }
         try:
-            cache.set(cache_key, response, timeout=300)
+            cache.set(cache_key, response, timeout=30)
         except DatabaseError as e:
             print(f"Cache set error in AnalyticsAPIView: {e}")
             # Continue without caching
