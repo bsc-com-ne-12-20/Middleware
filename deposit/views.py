@@ -145,7 +145,7 @@ class AgentDepositHistoryAPIView(generics.ListAPIView):
                 )
             }
             try:
-                cache.set(cache_key, growth, timeout=30)  # Cache for 5 minutes
+                cache.set(cache_key, growth, timeout=5)
             except DatabaseError as e:
                 print(f"Cache set error in AgentDepositHistoryAPIView: {e}")
                 # Continue without caching
@@ -312,7 +312,7 @@ class AnalyticsAPIView(APIView):
             }
         }
         try:
-            cache.set(cache_key, response, timeout=30)
+            cache.set(cache_key, response, timeout=5)
         except DatabaseError as e:
             print(f"Cache set error in AnalyticsAPIView: {e}")
             # Continue without caching
