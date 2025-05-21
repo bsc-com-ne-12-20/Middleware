@@ -1,5 +1,5 @@
 
-# transactions/serializers.py
+# deposit/serializers.py
 from rest_framework import serializers
 from decimal import Decimal
 import uuid

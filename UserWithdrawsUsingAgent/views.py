@@ -334,7 +334,7 @@ class AgentWithdrawalHistoryAPIView(APIView):
                     ),
                 }
                 try:
-                    cache.set(cache_key, growth, timeout=300)
+                    cache.set(cache_key, growth, timeout=30)
                 except DatabaseError as e:
                     print(f"Cache set error in AgentWithdrawalHistoryAPIView: {e}")
 
