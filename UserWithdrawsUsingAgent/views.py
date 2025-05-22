@@ -85,7 +85,7 @@ class UserWithdrawToAgentAPIView(APIView):
                 or ("trans_id" in response_data)
             ):
                 try:
-                    agent.add_to_balance(net_amount)
+                    #agent.add_to_balance(net_amount)
                     withdrawal.status = "completed"
                     withdrawal.process_transaction()
                     logger.info(
@@ -187,7 +187,7 @@ class AgentWithdrawalDepositAPIView(APIView):
             )
 
         try:
-            agent.add_to_balance(net_amount)
+            #agent.add_to_balance(net_amount)
             deposit.status = "completed"
             deposit.process_transaction()
             logger.info(
