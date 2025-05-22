@@ -28,7 +28,6 @@ from .serializers import (
 )
 
 logger = logging.getLogger(__name__)
-MINIMUM_BALANCE = 1000000  # 200,000 MWK
 
 # Helper function for balance retrieval
 def get_user_balance(email, auth_token):
@@ -38,7 +37,7 @@ def get_user_balance(email, auth_token):
             'https://mtima.onrender.com/api/get-balance/',
             json={'email': email},
             headers={'Authorization': f'Bearer {auth_token}'},
-            timeout=15  # Increased from 5 to 15 seconds
+            timeout=15
         )
         response.raise_for_status()
         return float(response.json().get('balance', 0))
@@ -50,7 +49,6 @@ def get_user_balance(email, auth_token):
 @api_view(['POST'])
 def register_agent(request):
     """Register a new agent account (pending approval)"""
-    # Check if the email already exists
     email = request.data.get('email')
     if Agents.objects.filter(email=email).exists():
         return Response({'error': 'This email is already registered.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -59,7 +57,6 @@ def register_agent(request):
     if serializer.is_valid():
         agent = serializer.save()
         
-        # Send approval request to admin
         send_mail(
             'New Agent Registration',
             f'New agent {agent.email} needs approval.\n\n'
@@ -76,7 +73,6 @@ def register_agent(request):
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 # Agent Login
 @api_view(['POST'])
 def agent_login(request):
@@ -85,7 +81,6 @@ def agent_login(request):
     if serializer.is_valid():
         user = serializer.validated_data['user']
         
-        # Refresh balance from external API (optional)
         try:
             token, _ = Token.objects.get_or_create(user=user)
             balance = get_user_balance(user.email, token.key)
@@ -95,7 +90,6 @@ def agent_login(request):
         except Exception as e:
             logger.warning(f"Failed to update balance: {str(e)}")
 
-        # Generate token for login
         return Response({
             'token': token.key,
             'user': {
@@ -151,19 +145,6 @@ def auto_approve_agent(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if balance < MINIMUM_BALANCE:
-            AgentApplication.objects.create(
-                username=username,
-                email=email,
-                phone_number=phone_number,
-                status='rejected',
-                verification_notes=f"Balance {balance} < {MINIMUM_BALANCE}"
-            )
-            return Response(
-                {'error': f'Minimum balance not met (requires {MINIMUM_BALANCE} MWK)'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
         temp_password = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
         agentCode = '42' + ''.join(random.choices(string.digits, k=4))
 
@@ -174,7 +155,7 @@ def auto_approve_agent(request):
                 password=temp_password,
                 phone_number=phone_number,
                 agentCode=agentCode,
-                current_balance=balance,
+                current_balance=0.00,
                 status='active',
                 is_active=True
             )
@@ -248,10 +229,11 @@ def change_password(request):
             if user.check_password(serializer.data.get('old_password')):
                 user.set_password(serializer.data.get('new_password'))
                 user.save()
-                update_session_auth_hash(request, user)  # To update session after password change
+                update_session_auth_hash(request, user)
                 return Response({'message': 'Password changed successfully.'}, status=status.HTTP_200_OK)
             return Response({'error': 'Incorrect old password.'}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 # Admin Approval Endpoint
 @api_view(['POST'])
 @permission_classes([IsAdminUser])
@@ -304,7 +286,6 @@ def agent_logout(request):
     return Response({'message': 'Logged out successfully'})
 
 @api_view(['POST'])
-#@permission_classes([IsAuthenticated])
 def get_agent_username(request):
     """Get agent username by agent code"""
     agentCode = request.query_params.get('agentCode')
@@ -315,9 +296,8 @@ def get_agent_username(request):
     agent = get_object_or_404(Agents, agentCode=agentCode)
     return Response({'username': agent.username}, status=status.HTTP_200_OK)
 
-#handle get balance
+# Handle get balance
 @api_view(['POST'])
-#@permission_classes([IsAuthenticated])
 def get_balance(request):
     """
     Return the current balance for the given agent code.
