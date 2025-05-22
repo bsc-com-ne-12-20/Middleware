@@ -1,37 +1,21 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from .models import Agents, AgentApplication
-from django.utils import timezone
-import re
 
 # ----------------------------
 # Phone Number Helper Methods
 # ----------------------------
 
 def normalize_phone(value):
-    """Normalize phone number (remove spaces and dashes)."""
-    return value.strip().replace(" ", "").replace("-", "")
-
-def normalize_phone(value):
     """Normalize phone number by removing spaces, dashes, and parentheses."""
     return ''.join(filter(str.isdigit, str(value))) if value else ''
-
-def validate_phone_number(value):
-    """Ensure phone number format is valid and normalize it."""
-    value = normalize_phone(value)
-    
-    # Ensure the phone number starts with +265 followed by a digit 1-9
-    if not re.match(r'^\+265[1-9][0-9]{6,11}$', value):
-        raise serializers.ValidationError("Phone number must start with +265 followed by a digit 1-9 and be 10 to 15 digits long.")
-    
-    return value
 
 # ----------------------------
 # AgentSerializer (Registration)
 # ----------------------------
 
 class AgentSerializer(serializers.ModelSerializer):
-    phone_number = serializers.CharField(validators=[validate_phone_number])
+    phone_number = serializers.CharField()
 
     class Meta:
         model = Agents
@@ -44,7 +28,7 @@ class AgentSerializer(serializers.ModelSerializer):
         }
 
     def validate_phone_number(self, value):
-        value = validate_phone_number(value)
+        value = normalize_phone(value)
         if Agents.objects.filter(phone_number=value).exists():
             raise serializers.ValidationError("Phone number already in use.")
         return value
@@ -111,6 +95,7 @@ class AgentLoginSerializer(serializers.Serializer):
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True)
+
 class ResetPasswordEmailSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
 
@@ -119,7 +104,7 @@ class ResetPasswordEmailSerializer(serializers.Serializer):
 # ----------------------------
 
 class AgentProfileSerializer(serializers.ModelSerializer):
-    phone_number = serializers.CharField(validators=[validate_phone_number])
+    phone_number = serializers.CharField()
 
     class Meta:
         model = Agents
@@ -133,7 +118,7 @@ class AgentProfileSerializer(serializers.ModelSerializer):
 # ----------------------------
 
 class AgentApplicationSerializer(serializers.ModelSerializer):
-    phone_number = serializers.CharField(validators=[validate_phone_number])
+    phone_number = serializers.CharField()
 
     class Meta:
         model = AgentApplication
@@ -163,7 +148,7 @@ class AgentApplicationListSerializer(serializers.ModelSerializer):
 
 class SimpleAgentApplicationSerializer(serializers.ModelSerializer):
     balance = serializers.FloatField(write_only=True, required=False)
-    phone_number = serializers.CharField(validators=[validate_phone_number])
+    phone_number = serializers.CharField()
 
     class Meta:
         model = AgentApplication
