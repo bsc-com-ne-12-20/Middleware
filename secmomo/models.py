@@ -20,7 +20,7 @@ class Agents(AbstractUser):
     
 """
 
-# ✅ Final Agents model version (used as AUTH_USER_MODEL)
+# Final Agents model version (used as AUTH_USER_MODEL)
 class Agents(AbstractUser):
     AGENT_STATUS = (
         ('pending', 'Pending Approval'),
