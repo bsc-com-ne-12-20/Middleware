@@ -1,5 +1,5 @@
 
-# transactions/serializers.py
+# deposit/serializers.py
 from rest_framework import serializers
 from decimal import Decimal
 import uuid
@@ -14,7 +14,7 @@ class AgentDepositSerializer(serializers.ModelSerializer):
     transaction_id = serializers.CharField(read_only=True)
 
     # Set a maximum deposit limit
-    MAX_DEPOSIT_LIMIT = Decimal('10000.00')  # Set the limit as per your requirements
+    MAX_DEPOSIT_LIMIT = Decimal('1000000.00')  # Set the limit as per your requirements
 
     class Meta:
         model = AgentDepositHistory

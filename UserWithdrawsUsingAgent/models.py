@@ -23,18 +23,22 @@ class Revenue(models.Model):
 
 class AgentWithdrawalHistory(models.Model):
     agent = models.ForeignKey(Agents, on_delete=models.CASCADE, related_name="withdrawal_history")
-    sender_email = models.EmailField()  # User's email
-    receiver_email = models.EmailField()  # Agent's email
+    sender_email = models.EmailField(blank=True, null=True)  # Optional for deposits
+    receiver_email = models.EmailField(blank=True, null=True)  # Optional for deposits
     gross_amount = models.DecimalField(max_digits=10, decimal_places=2)
     commission_earned = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     net_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     transaction_id = models.CharField(max_length=12, unique=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(max_length=20, choices=(
-        ('pending', 'Pending'),
-        ('completed', 'Completed'),
-        ('failed', 'Failed'),
-    ), default='pending')
+    status = models.CharField(
+        max_length=20,
+        choices=(
+            ('pending', 'Pending'),
+            ('completed', 'Completed'),
+            ('failed', 'Failed'),
+        ),
+        default='pending'
+    )
 
     class Meta:
         ordering = ["-timestamp"]
@@ -51,7 +55,7 @@ class AgentWithdrawalHistory(models.Model):
             raise ValueError("Amount must be positive")
 
         if self.net_amount is None:
-            self.net_amount = self.gross_amount  # Agent receives gross_amount
+            self.net_amount = self.gross_amount  # Net equals gross for deposits
 
         super().save(*args, **kwargs)
 
@@ -60,9 +64,10 @@ class AgentWithdrawalHistory(models.Model):
             Agents.objects.filter(pk=self.agent.pk).update(
                 current_balance=F("current_balance") + self.net_amount
             )
-            Revenue.add_fee(self.commission_earned)
+            if self.commission_earned > 0:  # Skip Revenue update for deposits
+                Revenue.add_fee(self.commission_earned)
             self.agent.refresh_from_db()
             self.save()
 
     def __str__(self):
-        return f"{self.sender_email} -> {self.agent.agentCode}: ${self.gross_amount}"
+        return f"{'Deposit' if not self.sender_email else self.sender_email} -> {self.agent.agentCode}: ${self.gross_amount}"

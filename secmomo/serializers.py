@@ -1,30 +1,21 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from .models import Agents, AgentApplication
-from django.utils import timezone
-import re
 
 # ----------------------------
 # Phone Number Helper Methods
 # ----------------------------
 
 def normalize_phone(value):
-    """Normalize phone number (remove spaces and dashes)."""
-    return value.strip().replace(" ", "").replace("-", "")
-
-def validate_phone_number(value):
-    """Ensure phone number format is valid and normalize it."""
-    value = normalize_phone(value)
-    if not re.match(r'^\+?[0-9]{10,15}$', value):
-        raise serializers.ValidationError("Invalid phone number format.")
-    return value
+    """Normalize phone number by removing spaces, dashes, and parentheses."""
+    return ''.join(filter(str.isdigit, str(value))) if value else ''
 
 # ----------------------------
 # AgentSerializer (Registration)
 # ----------------------------
 
 class AgentSerializer(serializers.ModelSerializer):
-    phone_number = serializers.CharField(validators=[validate_phone_number])
+    phone_number = serializers.CharField()
 
     class Meta:
         model = Agents
@@ -37,7 +28,7 @@ class AgentSerializer(serializers.ModelSerializer):
         }
 
     def validate_phone_number(self, value):
-        value = validate_phone_number(value)
+        value = normalize_phone(value)
         if Agents.objects.filter(phone_number=value).exists():
             raise serializers.ValidationError("Phone number already in use.")
         return value
@@ -112,7 +103,7 @@ class ResetPasswordEmailSerializer(serializers.Serializer):
 # ----------------------------
 
 class AgentProfileSerializer(serializers.ModelSerializer):
-    phone_number = serializers.CharField(validators=[validate_phone_number])
+    phone_number = serializers.CharField()
 
     class Meta:
         model = Agents
@@ -126,7 +117,7 @@ class AgentProfileSerializer(serializers.ModelSerializer):
 # ----------------------------
 
 class AgentApplicationSerializer(serializers.ModelSerializer):
-    phone_number = serializers.CharField(validators=[validate_phone_number])
+    phone_number = serializers.CharField()
 
     class Meta:
         model = AgentApplication
@@ -156,7 +147,7 @@ class AgentApplicationListSerializer(serializers.ModelSerializer):
 
 class SimpleAgentApplicationSerializer(serializers.ModelSerializer):
     balance = serializers.FloatField(write_only=True, required=False)
-    phone_number = serializers.CharField(validators=[validate_phone_number])
+    phone_number = serializers.CharField()
 
     class Meta:
         model = AgentApplication

@@ -1,3 +1,4 @@
+# withdrawal/views.py
 from django.forms import ValidationError
 from rest_framework import status
 from rest_framework.response import Response
@@ -12,6 +13,7 @@ from .serializers import (
     UserWithdrawalToAgentSerializer,
     TransactionResponseSerializer,
     AgentWithdrawalHistorySerializer,
+    AgentDepositSerializer,
 )
 from django.utils import timezone
 from datetime import timedelta
@@ -21,7 +23,6 @@ from django.db import DatabaseError
 import logging
 
 logger = logging.getLogger(__name__)
-
 
 class UserWithdrawToAgentAPIView(APIView):
     @transaction.atomic
@@ -36,7 +37,7 @@ class UserWithdrawToAgentAPIView(APIView):
 
         commission_rate = Decimal("0.03")
         commission_earned = amount * commission_rate
-        net_amount = amount - commission_earned
+        net_amount = amount + commission_earned
 
         try:
             agent = Agents.objects.select_for_update().get(agentCode=agent_code)
@@ -46,19 +47,26 @@ class UserWithdrawToAgentAPIView(APIView):
                 {"detail": "Agent not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
-        withdrawal = AgentWithdrawalHistory(
-            agent=agent,
-            sender_email=sender_email,
-            receiver_email=agent.email,
-            gross_amount=amount,
-            commission_earned=commission_earned,
-            net_amount=net_amount,
-            status="pending",
-        )
-        withdrawal.save()
+        try:
+            withdrawal = AgentWithdrawalHistory(
+                agent=agent,
+                sender_email=sender_email,
+                receiver_email=agent.email,
+                gross_amount=amount,
+                commission_earned=commission_earned,
+                net_amount=net_amount,
+                status="pending",
+            )
+            withdrawal.save()
+            logger.info(f"Created withdrawal {withdrawal.transaction_id} for {sender_email}")
+        except Exception as e:
+            logger.error(f"Failed to create withdrawal for {sender_email}: {str(e)}")
+            return Response(
+                {"detail": "Failed to create withdrawal record"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
         try:
-            # Call external wallet service
             response = requests.post(
                 settings.USER_WALLET_WITHDRAW_URL,
                 json={
@@ -71,17 +79,19 @@ class UserWithdrawToAgentAPIView(APIView):
             response_data = response.json()
             logger.info(f"Wallet service response: {response_data}")
 
-            # Modified success condition check
             if (
                 response.status_code == 200
                 and ("success" in response_data and response_data["success"])
                 or ("trans_id" in response_data)
-            ):  # Also consider it successful if it has transaction ID
-
+            ):
                 try:
-                    agent.add_to_balance(net_amount)
+                    #agent.add_to_balance(net_amount)
                     withdrawal.status = "completed"
                     withdrawal.process_transaction()
+                    logger.info(
+                        f"Success: Withdrawal {withdrawal.transaction_id} processed. "
+                        f"Amount: {amount}, Agent: {agent_code}"
+                    )
                 except ValidationError as e:
                     withdrawal.status = "failed"
                     logger.error(f"Balance limit exceeded for agent {agent.agentCode}: {str(e)}")
@@ -89,11 +99,6 @@ class UserWithdrawToAgentAPIView(APIView):
                         {"detail": str(e)},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
-
-                logger.info(
-                    f"Success: Withdrawal {withdrawal.transaction_id} processed. "
-                    f"Amount: {amount}, Agent: {agent_code}"
-                )
             else:
                 withdrawal.status = "failed"
                 logger.error(
@@ -107,7 +112,6 @@ class UserWithdrawToAgentAPIView(APIView):
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
         except requests.exceptions.RequestException as e:
             withdrawal.status = "failed"
             logger.error(
@@ -116,6 +120,13 @@ class UserWithdrawToAgentAPIView(APIView):
             return Response(
                 {"detail": "Failed to connect to wallet service"},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except ValueError as e:
+            withdrawal.status = "failed"
+            logger.error(f"Invalid response from wallet service: {str(e)}")
+            return Response(
+                {"detail": "Invalid response from wallet service"},
+                status=status.HTTP_502_BAD_GATEWAY,
             )
         finally:
             withdrawal.save()
@@ -135,10 +146,87 @@ class UserWithdrawToAgentAPIView(APIView):
 
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
+class AgentWithdrawalDepositAPIView(APIView):
+    @transaction.atomic
+    def post(self, request, *args, **kwargs):
+        serializer = AgentDepositSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        agent_code = data["agentCode"]
+        amount = data["amount"]
+
+        commission_earned = Decimal("0.00")  # Always 0 for deposits
+        net_amount = amount
+
+        try:
+            agent = Agents.objects.select_for_update().get(agentCode=agent_code)
+        except Agents.DoesNotExist:
+            logger.error(f"Agent not found: {agent_code}")
+            return Response(
+                {"detail": "Agent not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        try:
+            deposit = AgentWithdrawalHistory(
+                agent=agent,
+                sender_email=None,  # No email for deposits
+                receiver_email=None,  # No email for deposits
+                gross_amount=amount,
+                commission_earned=commission_earned,
+                net_amount=net_amount,
+                status="pending",
+            )
+            deposit.save()
+            logger.info(f"Created deposit {deposit.transaction_id} for agent {agent_code}")
+        except Exception as e:
+            logger.error(f"Failed to create deposit for {agent_code}: {str(e)}")
+            return Response(
+                {"detail": "Failed to create deposit record"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        try:
+            #agent.add_to_balance(net_amount)
+            deposit.status = "completed"
+            deposit.process_transaction()
+            logger.info(
+                f"Success: Deposit {deposit.transaction_id} processed. "
+                f"Amount: {amount}, Agent: {agent_code}"
+            )
+        except ValidationError as e:
+            deposit.status = "failed"
+            logger.error(f"Balance limit exceeded for agent {agent.agentCode}: {str(e)}")
+            deposit.save()
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception as e:
+            deposit.status = "failed"
+            logger.error(f"Failed to process deposit {deposit.transaction_id}: {str(e)}")
+            deposit.save()
+            return Response(
+                {"detail": "Failed to process deposit"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        response_serializer = TransactionResponseSerializer(
+            {
+                "id": deposit.transaction_id,
+                "type": "withdrawal",
+                "sender": None,
+                "receiver": agent.agentCode,
+                "amount": deposit.gross_amount,
+                "commission_earned": deposit.commission_earned,
+                "time_stamp": deposit.timestamp,
+                "status": deposit.status,
+            }
+        )
+
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
 
 class AgentWithdrawalHistoryAPIView(APIView):
-    # permission_classes = [IsAuthenticated]
-
     def get(self, request):
         agentCode = request.query_params.get("agentCode")
         timeRange = request.query_params.get("timeRange", "day")
@@ -173,7 +261,6 @@ class AgentWithdrawalHistoryAPIView(APIView):
                 timestamp__gte=start, timestamp__lte=end
             ).order_by("-timestamp")
 
-            # Cache key for growth data
             cache_key = f"growth_withdrawal_{agentCode}_{timeRange}"
             growth = None
             try:
@@ -182,7 +269,6 @@ class AgentWithdrawalHistoryAPIView(APIView):
                     growth = cached_growth
             except DatabaseError as e:
                 print(f"Cache get error in AgentWithdrawalHistoryAPIView: {e}")
-                # Proceed without cache
 
             if not growth:
                 current_start = start
@@ -248,10 +334,9 @@ class AgentWithdrawalHistoryAPIView(APIView):
                     ),
                 }
                 try:
-                    cache.set(cache_key, growth, timeout=300)
+                    cache.set(cache_key, growth, timeout=5)
                 except DatabaseError as e:
                     print(f"Cache set error in AgentWithdrawalHistoryAPIView: {e}")
-                    # Continue without caching
 
             serializer = AgentWithdrawalHistorySerializer(queryset, many=True)
             return Response(
