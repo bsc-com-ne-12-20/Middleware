@@ -54,7 +54,7 @@ class Agents(AbstractUser):
     #    super().save(*args, **kwargs)
     
     #def _generate_agentCode(self):
-    #    """Generate unique 6-digit numerical code"""
+    #    """Genesrate unique 6-digit numerical code"""
     #    while True:
     #        code = str(random.randint(123000, 123999))  # 6-digit number
     #        if not Agents.objects.filter(agentCode=code).exists():
