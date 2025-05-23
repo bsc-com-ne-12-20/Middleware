@@ -3,6 +3,7 @@ import random
 import string
 import logging
 import requests
+from decimal import Decimal, ROUND_DOWN
 from django.db import transaction
 from django.conf import settings
 from django.utils import timezone
@@ -145,9 +146,10 @@ def auto_approve_agent(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        temp_password = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
+        temp_password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
         agentCode = '42' + ''.join(random.choices(string.digits, k=4))
-
+        agentBalance = Decimal('0').quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+        
         with transaction.atomic():
             agent = Agents.objects.create_user(
                 username=username,
@@ -155,7 +157,7 @@ def auto_approve_agent(request):
                 password=temp_password,
                 phone_number=phone_number,
                 agentCode=agentCode,
-                current_balance=0.00,
+                current_balance= agentBalance,
                 status='active',
                 is_active=True
             )
@@ -229,11 +231,10 @@ def change_password(request):
             if user.check_password(serializer.data.get('old_password')):
                 user.set_password(serializer.data.get('new_password'))
                 user.save()
-                update_session_auth_hash(request, user)
+                update_session_auth_hash(request, user)  # To update session after password change
                 return Response({'message': 'Password changed successfully.'}, status=status.HTTP_200_OK)
             return Response({'error': 'Incorrect old password.'}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 # Admin Approval Endpoint
 @api_view(['POST'])
 @permission_classes([IsAdminUser])
