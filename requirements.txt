@@ -20,8 +20,5 @@ requests==2.32.3
 rest-framework-simplejwt==0.0.2
 sqlparse==0.5.3
 tzdata==2025.1
-<<<<<<< HEAD
 urllib3==2.4.0
 yarl==1.20.0
-=======
->>>>>>> 54ff3f425e3a0512587aa4086fb55886ade96681
