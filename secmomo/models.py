@@ -43,15 +43,15 @@ class Agents(AbstractUser):
         self.current_balance += amount
         self.save()
 
-    def save(self, *args, **kwargs):
-        if not self.agentCode:
-            self.agentCode = self._generate_agentCode()
-
-        # Ensure unique username, if it's not provided, auto-generate one
-        if not self.username:
-            self.username = self._generate_unique_username()
-
-        super().save(*args, **kwargs)
+    #def save(self, *args, **kwargs):
+    #    if not self.agentCode:
+    #        self.agentCode = self._generate_agentCode()
+    #
+    #    # Ensure unique username, if it's not provided, auto-generate one
+    #    if not self.username:
+    #        self.username = self._generate_unique_username()
+    #
+    #    super().save(*args, **kwargs)
     
     #def _generate_agentCode(self):
     #    """Generate unique 6-digit numerical code"""

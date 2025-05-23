@@ -3,6 +3,7 @@ import random
 import string
 import logging
 import requests
+from decimal import Decimal, ROUND_DOWN
 from django.db import transaction
 from django.conf import settings
 from django.utils import timezone
@@ -166,6 +167,7 @@ def auto_approve_agent(request):
 
         temp_password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
         agentCode = '42' + ''.join(random.choices(string.digits, k=4))
+        agentBalance = Decimal('0').quantize(Decimal('0.01'), rounding=ROUND_DOWN)
 
         with transaction.atomic():
             agent = Agents.objects.create_user(
@@ -174,7 +176,7 @@ def auto_approve_agent(request):
                 password=temp_password,
                 phone_number=phone_number,
                 agentCode=agentCode,
-                current_balance=balance,
+                current_balance= agentBalance,
                 status='active',
                 is_active=True
             )
