@@ -157,7 +157,7 @@ def auto_approve_agent(request):
                 password=temp_password,
                 phone_number=phone_number,
                 agentCode=agentCode,
-                current_balance= agentBalance,
+                current_balance=0.00,
                 status='active',
                 is_active=True
             )
@@ -231,10 +231,11 @@ def change_password(request):
             if user.check_password(serializer.data.get('old_password')):
                 user.set_password(serializer.data.get('new_password'))
                 user.save()
-                update_session_auth_hash(request, user)  # To update session after password change
+                update_session_auth_hash(request, user)
                 return Response({'message': 'Password changed successfully.'}, status=status.HTTP_200_OK)
             return Response({'error': 'Incorrect old password.'}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 # Admin Approval Endpoint
 @api_view(['POST'])
 @permission_classes([IsAdminUser])
