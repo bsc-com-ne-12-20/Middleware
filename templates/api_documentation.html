@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>API Documentation </title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        nav {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        nav button {
+            background-color: #2980b9;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 0 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        nav button:hover {
+            background-color: #3498db;
+        }
+        section {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+        section h2 {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            padding-right: 25px;
+        }
+        section h2::after {
+            content: '+';
+            position: absolute;
+            right: 0;
+            top: 0;
+            font-size: 24px;
+            line-height: 1;
+            transition: transform 0.3s ease;
+        }
+        section.open h2::after {
+            content: '-';
+        }
+        .endpoint-list {
+            margin-top: 15px;
+            display: none;
+        }
+        section.open .endpoint-list {
+            display: block;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: left;
+            vertical-align: top;
+        }
+        th {
+            background-color: #2980b9;
+            color: white;
+        }
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-family: Consolas, monospace;
+        }
+        pre {
+            background-color: #ecf0f1;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>API Documentation</h1>
+    <nav>
+        <button onclick="toggleSection('core-auth')">Core Authentication</button>
+        <button onclick="toggleSection('financial-transactions')">Financial Transactions</button>
+        <button onclick="toggleSection('agent-management')">Agent Management</button>
+    </nav>
+
+    <section id="core-auth">
+        <h2 onclick="toggleSection('core-auth')">Core Authentication</h2>
+        <div class="endpoint-list">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Endpoint</th>
+                        <th>Method</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>/api/logout/</code></td>
+                        <td>POST</td>
+                        <td>Invalidate auth token (logout agent).</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/change-password/</code></td>
+                        <td>POST</td>
+                        <td>Change password for authenticated agent.</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/profile/</code></td>
+                        <td>GET</td>
+                        <td>Get current authenticated agent's profile.</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/get-balance/</code></td>
+                        <td>POST</td>
+                        <td>Get agent balance by email.</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/get-username/</code></td>
+                        <td>POST</td>
+                        <td>Get agent username by email.</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/agent-balance/</code></td>
+                        <td>GET</td>
+                        <td>Get agent balance by agent code.</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/get-agent-username/</code></td>
+                        <td>POST</td>
+                        <td>Get agent username by agent code.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section id="financial-transactions">
+        <h2 onclick="toggleSection('financial-transactions')">Financial Transactions</h2>
+        <div class="endpoint-list">
+            <h3>Deposits</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Endpoint</th>
+                        <th>Method</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>/api/v1/dpst/</code></td>
+                        <td>POST</td>
+                        <td>Create a new deposit.</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/v1/dpst/dpst-hstr/</code></td>
+                        <td>GET</td>
+                        <td>Get deposit history filtered by agent code and time range (day, week, month).</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/v1/dpst/get-balance/</code></td>
+                        <td>GET</td>
+                        <td>Get current balance for an agent by agent code.</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/v1/dpst/analytics/</code></td>
+                        <td>GET</td>
+                        <td>Get analytics summary and growth metrics for deposits, withdrawals, and transfers.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Transfers</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Endpoint</th>
+                        <th>Method</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>/api/v1/agent-trsf/</code></td>
+                        <td>POST</td>
+                        <td>Create a new transfer.</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/v1/agent-trsf/trsf-hstr/</code></td>
+                        <td>GET</td>
+                        <td>Get transfer history filtered by agent code and time range (day, week, month).</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>User Withdrawals</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Endpoint</th>
+                        <th>Method</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>/api/v1/wtdr/</code></td>
+                        <td>POST</td>
+                        <td>Create a new withdrawal request to an agent.</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/v1/wtdr/wdr-to-agent-hstr/</code></td>
+                        <td>GET</td>
+                        <td>Get withdrawal history filtered by agent code and time range (day, week, month).</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/v1/wtdr/dpst/</code></td>
+                        <td>POST</td>
+                        <td>Create a deposit record related to withdrawals.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section id="agent-management">
+        <h2 onclick="toggleSection('agent-management')">Agent Management</h2>
+        <div class="endpoint-list">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Endpoint</th>
+                        <th>Method</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>/api/v1/agent-usr/</code></td>
+                        <td>GET, POST</td>
+                        <td>List all agents or create a new agent.</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/applications/auto-approve/</code></td>
+                        <td>POST</td>
+                        <td>Auto-approve agent application and create agent account.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+    <script>
+        function toggleSection(id) {
+            const section = document.getElementById(id);
+            if (section.classList.contains('open')) {
+                section.classList.remove('open');
+            } else {
+                section.classList.add('open');
+            }
+        }
+    </script>
+</body>
+</html>
