@@ -238,3 +238,6 @@ LOGGING = {
         },
     },
 }
+CSRF_TRUSTED_ORIGINS = [
+    'https://securemomo-middleware.onrender.com',
+]
