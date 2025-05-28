@@ -3,6 +3,7 @@ import random
 import string
 import logging
 import requests
+from decimal import Decimal, ROUND_DOWN
 from django.db import transaction
 from django.conf import settings
 from django.utils import timezone
@@ -145,9 +146,10 @@ def auto_approve_agent(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        temp_password = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
+        temp_password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
         agentCode = '42' + ''.join(random.choices(string.digits, k=4))
-
+        agentBalance = Decimal('0').quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+        
         with transaction.atomic():
             agent = Agents.objects.create_user(
                 username=username,
